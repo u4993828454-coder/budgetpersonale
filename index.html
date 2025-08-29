@@ -41,11 +41,16 @@
   </table>
 
   <script>
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
+    const csvBaseUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
     let dataTableInstance;
     let currentFilter = 'today';
 
     $.fn.dataTable.moment('DD/MM/YYYY');
+
+    function getCsvUrl() {
+      // Aggiunge parametro timestamp per evitare cache browser
+      return csvBaseUrl + '&nocache=' + new Date().getTime();
+    }
 
     function parseDate(str) {
       const [d, m, y] = str.split('/');
@@ -63,7 +68,7 @@
     function showFilteredData(filter) {
       currentFilter = filter;
 
-      Papa.parse(csvUrl, {
+      Papa.parse(getCsvUrl(), {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -140,12 +145,15 @@
       });
     }
 
+    // mostra dati oggi all'apertura
     showFilteredData(currentFilter);
 
+    // aggiorna dati ogni 60 secondi tenendo conto del filtro attuale
     setInterval(() => {
       showFilteredData(currentFilter);
     }, 60000);
 
+    // gestione click pulsanti filtro
     $('.filter-btn').on('click', function() {
       const filter = $(this).data('filter');
       showFilteredData(filter);
