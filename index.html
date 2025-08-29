@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Filtri avanzati</title>
+  <title>Budget Personale - Debug filtro anno</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
@@ -38,8 +38,8 @@
   <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
 </head>
 <body>
-  <h1>Budget Personale - Google Sheets</h1>
-  <p>La tabella si aggiorna automaticamente ogni 60 secondi.</p>
+  <h1>Budget Personale - Debug filtro anno</h1>
+  <p>Controlla la console per i messaggi di debug.</p>
 
   <div id="filter-container">
     <button class="filter-btn active" data-filter="today">Oggi</button>
@@ -113,12 +113,19 @@
     }
 
     function filterDataByMonthAndYear(data, monthNum, yearNum) {
+      console.log("Filtro anno-mese:", yearNum, monthNum);
       if (!monthNum) return data;
-      return data.filter(row => {
+      const filtered = data.filter(row => {
         const rowDate = parseDate(row["DATA"]);
         if (!rowDate) return false;
-        return (rowDate.getMonth() + 1) === monthNum && rowDate.getFullYear() === yearNum;
+        const match = (rowDate.getMonth() + 1) === monthNum && rowDate.getFullYear() === yearNum;
+        if(!match) {
+          console.log("Escludo ", row["DATA"]);
+        }
+        return match;
       });
+      console.log("Dati filtrati per mese-anno. Totale:", filtered.length);
+      return filtered;
     }
 
     function renderTable(data, filter) {
@@ -127,6 +134,7 @@
       if (!data || data.length === 0) {
         $('#header-row').html('');
         $('#myTable tbody').html('<tr><td colspan="10" style="text-align:center;font-style:italic;">Nessun dato disponibile</td></tr>');
+        console.log("Nessun dato disponibile da mostrare");
         return;
       }
 
@@ -172,6 +180,7 @@
         lengthChange: false,
         searching: true
       });
+      console.log("Dati renderizzati: ", data.length);
     }
 
     function showFilteredData(filter) {
@@ -215,6 +224,9 @@
               filteredData = rawData;
               $('#month-filter-container').hide();
           }
+
+          // Log dati prima del filtro mese
+          console.log("Dati dopo filtro anno-settimana-mese, prima filtro mese se applicabile:", filteredData.length);
 
           if(filter === 'year') {
             const selectedMonth = parseInt($('#month-select').val(), 10);
