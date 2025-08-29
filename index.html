@@ -2,10 +2,17 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Aggiornamento automatico</title>
+  <title>Budget Personale - Filtraggio e colori</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
+    /* Colori per le righe */
+    .uscita {
+      background-color: #f8d7da !important; /* rosso chiaro */
+    }
+    .entrata {
+      background-color: #d4edda !important; /* verde chiaro */
+    }
   </style>
 </head>
 <body>
@@ -34,25 +41,37 @@
             $('#myTable tbody').html('');
             return;
           }
-          // Costruisci intestazione dinamicamente dalle chiavi del primo oggetto
-          const headers = Object.keys(data[0]);
-          $('#header-row').html(headers.map(h => `<th>${h}</th>`).join(''));
+          const allHeaders = Object.keys(data[0]);
+          // Headers da mostrare (elimina MESE, ANNO, MESE_1)
+          const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
+          $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
+
           let tbody = '';
           data.forEach(row => {
-            tbody += '<tr>';
-            headers.forEach(h => {
+            // Gestione classi colore per riga
+            let classe = '';
+            if (row["TIPOLOGIA"] === "Uscita") {
+              classe = 'uscita';
+            } else if (row["TIPOLOGIA"] === "Entrata") {
+              classe = 'entrata';
+            }
+            tbody += `<tr class="${classe}">`;
+            showHeaders.forEach(h => {
               tbody += `<td>${row[h] || ''}</td>`;
             });
             tbody += '</tr>';
           });
+
           $('#myTable tbody').html(tbody);
-          // Distruggi istanza precedente DataTable
+
           if (dataTableInstance) dataTableInstance.destroy();
-          // Reinizializza DataTable
+
           dataTableInstance = $('#myTable').DataTable({
+            order: [[showHeaders.indexOf("DATA"), 'desc']],
             language: {
               url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
-            }
+            },
+            // Nasconde le colonne che non servono (già rimosse in costruzione della tabella)
           });
         }
       });
