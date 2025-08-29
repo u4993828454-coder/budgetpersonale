@@ -2,76 +2,74 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale</title>
-  <!-- Bootstrap for better looks -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css"/>
+  <title>Budget Personale - Aggiornamento automatico</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
-    body { padding: 2em; }
-    h1 { margin-bottom: 1em; }
+    body { padding: 20px; font-family: Arial, sans-serif; }
   </style>
 </head>
 <body>
   <h1>Budget Personale - Google Sheets</h1>
-  <div class="table-responsive">
-    <table id="myTable" class="table table-striped table-bordered">
-      <thead>
-        <tr>
-          <th>Informazioni cronologiche</th>
-          <th>Data (gg/mm/aaaa)</th>
-          <th>Importo (€)</th>
-          <th>Tipo movimento</th>
-          <th>Categoria uscita</th>
-          <th>Categoria entrata</th>
-          <th>Da</th>
-          <th>A</th>
-          <th>Conto</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <p>La tabella si aggiorna automaticamente ogni 60 secondi.</p>
+  <table id="myTable" class="display" style="width:100%">
+    <thead><tr id="header-row"></tr></thead>
+    <tbody></tbody>
+  </table>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
   <script>
     const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
+    let dataTableInstance;
 
-    Papa.parse(csvUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: function(results) {
-        const data = results.data;
-        let tbody = '';
-        data.forEach(row => {
-          // Solo righe con almeno 'Data' e 'Importo' compilati
-          if (row["Data (gg/mm/aaaa)"] && row["Importo (€)"]) {
-            tbody += `<tr>
-              <td>${row["Informazioni cronologiche"] || ""}</td>
-              <td>${row["Data (gg/mm/aaaa)"] || ""}</td>
-              <td>${row["Importo (€)"] || ""}</td>
-              <td>${row["Tipo movimento"] || ""}</td>
-              <td>${row["Categoria uscita"] || ""}</td>
-              <td>${row["Categoria entrata"] || ""}</td>
-              <td>${row["Da"] || ""}</td>
-              <td>${row["A"] || ""}</td>
-              <td>${row["Conto"] || ""}</td>
-            </tr>`;
+    function reloadTable() {
+      Papa.parse(csvUrl, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          const data = results.data;
+          if (data.length === 0) {
+            alert('Nessun dato trovato nel CSV.');
+            return;
           }
-        });
-        $('#myTable tbody').html(tbody);
-        $('#myTable').DataTable({
-          language: {
-            url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
+          // Costruiamo l'intestazione dinamicamente
+          const headers = Object.keys(data[0]);
+          $('#header-row').html(headers.map(h => `<th>${h}</th>`).join(''));
+
+          // Costruiamo il corpo della tabella
+          let tbody = '';
+          data.forEach(row => {
+            tbody += '<tr>';
+            headers.forEach(h => {
+              tbody += `<td>${row[h] || ''}</td>`;
+            });
+            tbody += '</tr>';
+          });
+          $('#myTable tbody').html(tbody);
+
+          // Distruggi la tabella precedentemente inizializzata se esiste
+          if (dataTableInstance) {
+            dataTableInstance.destroy();
           }
-        });
-      }
-    });
+
+          // Inizializza DataTable
+          dataTableInstance = $('#myTable').DataTable({
+            language: {
+              url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
+            }
+          });
+        },
+        error: function(err) {
+          console.error('Errore nel caricamento CSV:', err);
+        }
+      });
+    }
+
+    // Primo caricamento e setup refresh ogni 60 secondi
+    reloadTable();
+    setInterval(reloadTable, 60000);
   </script>
 </body>
 </html>
