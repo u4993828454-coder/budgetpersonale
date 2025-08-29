@@ -1,51 +1,63 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <title>Budget Personale - Elenco e Dettaglio Spese Aggiornato</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; }
-    #sidebar {
-      width: 220px;
-      background: #f8f9fa;
-      border-right: 1px solid #ddd;
-      padding-top: 30px;
-      box-sizing: border-box;
-    }
-    #sidebar ul {
-      list-style: none;
-      padding-left: 0;
-      margin: 0;
-    }
-    #sidebar li {
-      padding: 15px 20px;
-      cursor: pointer;
-      font-weight: bold;
-      border-left: 5px solid transparent;
-      user-select: none;
-    }
-    #sidebar li.active {
-      background-color: #007bff;
-      color: white;
-      border-left-color: #0056b3;
-    }
-    #content {
-      flex: 1;
-      overflow: auto;
-      padding: 20px;
-    }
-    h1 { margin-top: 0; }
-    .uscita { background-color: #f8d7da !important; }
-    .entrata { background-color: #d4edda !important; }
-    /* Colorazioni headers per dettaglio spese */
-    .header-azzurro {
-      background-color: #cce5ff !important;
-    }
-    .header-giallo {
-      background-color: #fff3cd !important;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Budget Personale - Elenco e Dettaglio Spese</title>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.css" />
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; display: flex; height: 100vh; }
+  #sidebar {
+    width: 220px;
+    background: #f8f9fa;
+    border-right: 1px solid #ddd;
+    padding-top: 30px;
+    box-sizing: border-box;
+  }
+  #sidebar ul {
+    list-style: none; padding: 0; margin: 0;
+  }
+  #sidebar li {
+    padding: 15px 20px;
+    cursor: pointer;
+    font-weight: bold;
+    border-left: 5px solid transparent;
+    user-select: none;
+  }
+  #sidebar li.active {
+    background-color: #007bff;
+    color: white;
+    border-left-color: #0056b3;
+  }
+  #content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+  }
+  h1 { margin-top: 0; }
+  .uscita { background-color: #f8dada !important; }
+  .entrata { background-color: #d4edda !important; }
+  .header-azzurro {
+    background-color: #cce5ff !important;
+  }
+  .header-giallo {
+    background-color: #fff3cd !important;
+  }
+  #filter-container {
+    margin-bottom: 10px;
+  }
+  #filter-container button {
+    margin-right: 5px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  #filter-container button.active {
+    background: #007bff;
+    color: #fff;
+    border: none;
+  }
+</style>
 </head>
 <body>
 
@@ -58,19 +70,21 @@
 
 <div id="content">
   <div id="elenco-view">
-    <div id="filter-container" style="margin-bottom:10px;">
+    <h1>Elenco Spese</h1>
+    <div id="filter-container">
       <button class="filter-btn active" data-filter="today">Oggi</button>
       <button class="filter-btn" data-filter="week">Ultima settimana</button>
       <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
-      <button class="filter-btn" data-filter="previous-month">Mese precedente più recente</button>
-      <button class="filter-btn" data-filter="all">Tutte le transazioni</button>
+      <button class="filter-btn" data-filter="previous-month">Mese precedente</button>
+      <button class="filter-btn" data-filter="all">Tutte</button>
     </div>
     <table id="elenco-table" class="display" style="width:100%">
       <thead><tr id="elenco-header"></tr></thead>
       <tbody></tbody>
     </table>
   </div>
-  <div id="dettaglio-view" style="display:none;">
+  <div id="dettaglio-view" style="display:none">
+    <h1>Dettaglio Spese</h1>
     <table id="dettaglio-table" class="display" style="width:100%">
       <thead><tr id="dettaglio-header"></tr></thead>
       <tbody></tbody>
@@ -79,61 +93,58 @@
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.1/papaparse.min.js"></script>
 <script>
   $.fn.dataTable.moment('DD/MM/YYYY');
 
-  // Link CSV corretti
-  const elencoUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
-  const dettaglioUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=364007020&single=true&output=csv';
+  const elencoUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1-wZZintendo5ots0m5fEGA6BygbkQQQH9pa7XrQ/pub?gid=1431873938&single=true&output=csv";
+  const dettaglioUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1-wpssjaytu9487afy0WYFso78wtdutwsy2/pub?gid=364020&single=true&output=csv";
 
   let elencoData = [];
   let dettaglioData = [];
-  let currentView = 'elenco';
-  let currentFilter = 'today';
+  let currentView = "elenco";
+  let currentFilter = "today";
 
-  const azzurroCols = ["TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE","SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"];
+  const azzurroCols = ["TRASPORTI","AFFITTO","UTENZE","SPESA","PERSONALE","MEDICHE","VESTITI","CASA","SCOLASTICHE"];
   const gialloCols = ["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"];
 
-  function parseDate(str) {
-    if (!str) return null;
-    const parts = str.split('/');
-    if (parts.length !== 3) return null;
-    return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+  function parseDate(str){
+    if(!str) return null;
+    let parts = str.split("/");
+    if(parts.length !==3) return null;
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
   }
 
-  function filterDateRange(data, start, end, excludeToday = false) {
+  function filterByDateRange(data, start, end, excludeToday){
     return data.filter(row => {
-      const dt = parseDate(row["DATA"]);
-      if (!dt) return false;
-      if (excludeToday) {
-        const today = new Date();
+      const d = parseDate(row["DATA"]);
+      if(!d) return false;
+      if(excludeToday){
+        let today = new Date();
         today.setHours(0,0,0,0);
-        if (dt.getTime() === today.getTime()) return false;
+        if(d.getTime() === today.getTime()) return false;
       }
-      return dt >= start && dt <= end;
+      return d >= start && d <= end;
     });
   }
 
-  function findPreviousMonthWithData(data) {
-    const today = new Date();
-    let year = today.getFullYear();
-    let month = today.getMonth() - 1;
+  function findPrevMonthWithData(data){
+    let now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth() -1;
     const counts = {};
-    data.forEach(row => {
-      const dt = parseDate(row["DATA"]);
-      if (!dt) return;
+    data.forEach(d => {
+      const dt = parseDate(d["DATA"]);
+      if(!dt) return;
       counts[dt.getFullYear()] = counts[dt.getFullYear()] || {};
-      counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()] || 0) + 1;
+      counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()] ||0) +1;
     });
-    for (let i = 0; i < 24; i++) {
-      if (counts[year] && counts[year][month]) return {year, month};
+    for(let i=0; i<24; i++){
+      if(counts[year] && counts[year][month]) return { year, month };
       month--;
-      if (month < 0) {
+      if(month < 0){
         month = 11;
         year--;
       }
@@ -141,63 +152,69 @@
     return null;
   }
 
-  let elencoTableInstance;
-  function renderElencoTable(data, filter) {
-    if(elencoTableInstance) elencoTableInstance.destroy();
+  let elencoTable, dettaglioTable;
+
+  function renderElenco(data){
+    if(elencoTable) elencoTable.destroy();
     if(!data.length){
-      $('#elenco-header').html('');
-      $('#elenco-table tbody').html('<tr><td colspan="20" style="text-align:center; font-style:italic;">Nessun dato disponibile</td></tr>');
+      $('#elenco-header').html("");
+      $('#elenco-table tbody').html("<tr><td colspan='20' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    const headers = Object.keys(data[0]).filter(h => !["MESE","ANNO","MESE_1"].includes(h));
-    $('#elenco-header').html(headers.map(h => `<th>${h}</th>`).join(''));
-    let rowsHTML = '';
+    const headers = Object.keys(data[0]).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
+    $('#elenco-header').html(headers.map(h=>`<th>${h}</th>`).join(""));
+
+    let rows = "";
     data.forEach(row => {
-      const cls = row["TIPOLOGIA"] === "Uscita" ? 'uscita' : (row["TIPOLOGIA"] === "Entrata" ? 'entrata' : '');
-      rowsHTML += '<tr class="'+cls+'">';
-      headers.forEach(h => {rowsHTML += '<td>'+ (row[h] || '') +'</td>';});
-      rowsHTML += '</tr>';
+      let cls = "";
+      if(row["TIPOLOGIA"] === "Uscita") cls = "uscita";
+      else if(row["TIPOLOGIA"] === "Entrata") cls = "entrata";
+      rows += "<tr class='"+cls+"'>";
+      headers.forEach(h => {
+        rows += "<td>" + (row[h] || "") + "</td>";
+      });
+      rows += "</tr>";
     });
-    $('#elenco-table tbody').html(rowsHTML);
-    elencoTableInstance = $('#elenco-table').DataTable({
-      order: [[headers.indexOf("DATA"), 'desc']],
-      language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
-      paging: filter !== 'today',
-      pageLength: filter === 'today' ? -1 : 15,
-      lengthChange: false,
+    $('#elenco-table tbody').html(rows);
+    elencoTable = $("#elenco-table").DataTable({
+      order: [[headers.indexOf("DATA"), "desc"]],
+      language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
+      paging: true,
+      pageLength: 15,
       searching: true,
-      info: filter !== 'today'
+      info: true
     });
   }
 
-  let dettaglioTableInstance;
-  function renderDettaglioTable(data) {
-    if(dettaglioTableInstance) dettaglioTableInstance.destroy();
+  function renderDettaglio(data){
+    if(dettaglioTable) dettaglioTable.destroy();
     if(!data.length){
-      $('#dettaglio-header').html('');
-      $('#dettaglio-table tbody').html('<tr><td colspan="30" style="text-align:center; font-style:italic;">Nessun dato disponibile</td></tr>');
+      $('#dettaglio-header').html("");
+      $('#dettaglio-table tbody').html("<tr><td colspan='30' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
     const headers = Object.keys(data[0]);
-    $('#dettaglio-header').html(headers.map(h => {
-      let cls = '';
-      if(azzurroCols.includes(h)) cls = 'header-azzurro';
-      else if(gialloCols.includes(h)) cls = 'header-giallo';
+    $('#dettaglio-header').html(headers.map(h=>{
+      let cls = "";
+      const colName = h.toUpperCase().trim();
+      if(["TRASPORTI","AFFITTO","UTENZE","SPESA PERSONALE","MEDICHE","VESTITI","CASA","SCOLASTICHE"].includes(colName)) cls = "header-azzurro";
+      if(["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"].includes(colName)) cls = "header-giallo";
       return `<th class="${cls}">${h}</th>`;
-    }).join(''));
-    let bodyHTML = '';
+    }).join(""));
+    let rows = "";
     data.forEach(row => {
-      bodyHTML += '<tr>';
-      headers.forEach(h => {bodyHTML += '<td>' + (row[h]||'') + '</td>';});
-      bodyHTML += '</tr>';
+      rows += "<tr>";
+      headers.forEach(h =>{
+        rows += "<td>" + (row[h] || "") + "</td>";
+      });
+      rows += "</tr>";
     });
-    $('#dettaglio-table tbody').html(bodyHTML);
-    dettaglioTableInstance = $('#dettaglio-table').DataTable({
-      order: [[0,'asc']],
-      language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
+    $('#dettaglio-table tbody').html(rows);
+    dettaglioTable = $('#dettaglio-table').DataTable({
+      order: [[0, "asc"]],
+      language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
       paging: true,
       pageLength: 15,
-      lengthChange: false,
       searching: true,
       info: true
     });
@@ -208,89 +225,82 @@
     today.setHours(0,0,0,0);
     let filtered = [];
     switch(filter){
-      case 'today':
-        filtered = filterDateRange(elencoData,today,today);
+      case "today":
+        filtered = filterByDateRange(elencoData, today, today);
         break;
-      case 'week':
-        let weekAgo = new Date(today);
-        weekAgo.setDate(today.getDate()-7);
-        filtered = filterDateRange(elencoData,weekAgo,today,true);
+      case "week":
+        let weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        filtered = filterByDateRange(elencoData, weekAgo, today, true);
         break;
-      case 'current-month':
-        let startMonth = new Date(today.getFullYear(),today.getMonth(),1);
-        let endMonth = new Date(today.getFullYear(),today.getMonth() + 1, 0);
-        filtered = filterDateRange(elencoData,startMonth,endMonth);
+      case "current-month":
+        let startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        let endMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        filtered = filterByDateRange(elencoData, startMonth, endMonth);
         break;
-      case 'previous-month':
-        let recent = findPreviousMonthWithData(elencoData);
+      case "previous-month":
+        let recent = findPrevMonthWithData(elencoData);
         if(!recent) filtered = [];
         else {
-          let startDate = new Date(recent.year, recent.month, 1);
-          let endDate = new Date(recent.year, recent.month +1 ,0);
-          filtered = filterDateRange(elencoData,startDate,endDate);
+          let start = new Date(recent.year, recent.month, 1);
+          let end = new Date(recent.year, recent.month + 1, 0);
+          filtered = filterByDateRange(elencoData, start, end);
         }
         break;
-      case 'all':
+      case "all":
       default:
-        filtered = [...elencoData];
-        break;
+        filtered = elencoData.slice().sort((a,b)=>{
+          let da = parseDate(a["DATA"]);
+          let db = parseDate(b["DATA"]);
+          if(!da) return 1;
+          if(!db) return -1;
+          return db - da;
+        });
     }
-    renderElencoTable(filtered, filter);
+    renderElenco(filtered);
   }
 
-  function switchView(view){
-    currentView = view;
-    if(view === 'elenco'){
-      $('#elenco-view').show();
-      $('#dettaglio-view').hide();
-      $('#filter-container').show();
-      applyElencoFilter(currentFilter);
-    } else {
-      $('#elenco-view').hide();
-      $('#dettaglio-view').show();
-      $('#filter-container').hide();
-      renderDettaglioTable(dettaglioData);
-    }
-    $('#sidebar li').removeClass('active');
-    $('#sidebar li[data-view="'+view+'"]').addClass('active');
-  }
-
-  let elencoData = [];
-  let dettaglioData = [];
-  let currentView = 'elenco';
-
-  $(document).ready(() => {
-    Papa.parse(elencoUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: function(results){
+  $(document).ready(()=>{
+    Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1-wZZintendo5ots0m5fEGA6BygbkQQQH9pa7XrQ/pub?gid=1431873938&single=true&output=csv",{
+      download:true,
+      header:true,
+      skipEmptyLines:true,
+      complete:function(results){
         elencoData = results.data;
-        switchView('elenco');
+        applyElencoFilter("today");
       }
     });
-    Papa.parse(dettaglioUrl, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: function(results){
+    Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1-wpssjaytu9487afy0WYFso78wtdutwsy2/pub?gid=364020&single=true&output=csv",{
+      download:true,
+      header:true,
+      skipEmptyLines:true,
+      complete:function(results){
         dettaglioData = results.data;
       }
     });
-
-    $('#sidebar li').on('click', function(){
-      const view = $(this).data('view');
-      switchView(view);
-    });
-
-    $('#filter-container').on('click', '.filter-btn', function(){
-      currentFilter = $(this).data('filter');
-      $('#filter-container .filter-btn').removeClass('active');
+    $('#sidebar li').on('click',function(){
+      let view = $(this).data('view');
+      if(view == "elenco"){
+        $('#elenco-view').show();
+        $('#dettaglio-view').hide();
+        $('#filter-container').show();
+        applyElencoFilter("today");
+      }else{
+        $('#elenco-view').hide();
+        $('#dettaglio-view').show();
+        $('#filter-container').hide();
+        renderDettaglio(dettaglioData);
+      }
+      $('#sidebar li').removeClass('active');
       $(this).addClass('active');
-      applyElencoFilter(currentFilter);
+    });
+    $('#filter-container').on('click', '.filter-btn', function(){
+      let filter = $(this).data('filter');
+      $('.filter-btn').removeClass('active');
+      $(this).addClass('active');
+      applyElencoFilter(filter);
     });
   });
 </script>
-
 </body>
 </html>
