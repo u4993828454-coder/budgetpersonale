@@ -2,12 +2,23 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Ordinamento Data</title>
+  <title>Budget Personale - Filtri e colori</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
     .uscita { background-color: #f8d7da !important; }
     .entrata { background-color: #d4edda !important; }
+    /* Container bottoni filtro */
+    #filter-container {
+      text-align: right;
+      margin-bottom: 10px;
+    }
+    #filter-container button {
+      margin-left: 5px;
+      padding: 5px 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
@@ -18,6 +29,13 @@
 <body>
   <h1>Budget Personale - Google Sheets</h1>
   <p>La tabella si aggiorna automaticamente ogni 60 secondi.</p>
+
+  <div id="filter-container">
+    <button class="filter-btn" data-filter="today">Oggi</button>
+    <button class="filter-btn" data-filter="week">Ultima settimana</button>
+    <button class="filter-btn" data-filter="month">Ultimo mese</button>
+  </div>
+
   <table id="myTable" class="display" style="width:100%">
     <thead><tr id="header-row"></tr></thead>
     <tbody></tbody>
@@ -26,53 +44,110 @@
   <script>
     const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
     let dataTableInstance;
+    let currentFilter = 'today'; // filtro iniziale
 
-    $.fn.dataTable.moment('DD/MM/YYYY'); // registra formattazione data
+    $.fn.dataTable.moment('DD/MM/YYYY');
 
-    function reloadTable() {
+    function parseDate(str) {
+      const [d, m, y] = str.split('/');
+      return new Date(y, m - 1, d);
+    }
+
+    function filterDataByDateRange(data, startDate, endDate) {
+      return data.filter(row => {
+        if (!row["DATA"]) return false;
+        const rowDate = parseDate(row["DATA"]);
+        return rowDate >= startDate && rowDate <= endDate;
+      });
+    }
+
+    function showFilteredData(filter) {
+      currentFilter = filter;
+
       Papa.parse(csvUrl, {
         download: true,
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          const data = results.data;
-          if (data.length === 0) {
-            $('#myTable tbody').html('');
-            return;
+          let data = results.data;
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          let filteredData;
+          switch(filter) {
+            case 'today':
+              filteredData = filterDataByDateRange(data, today, today);
+              break;
+            case 'week':
+              const weekAgo = new Date(today);
+              weekAgo.setDate(today.getDate() - 7);
+              filteredData = filterDataByDateRange(data, weekAgo, today);
+              break;
+            case 'month':
+              const monthAgo = new Date(today);
+              monthAgo.setMonth(today.getMonth() - 1);
+              filteredData = filterDataByDateRange(data, monthAgo, today);
+              break;
+            default:
+              filteredData = data;
           }
+
+          if (dataTableInstance) dataTableInstance.destroy();
+
           const allHeaders = Object.keys(data[0]);
           const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
           $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
 
           let tbody = '';
-          data.forEach(row => {
+          filteredData.forEach(row => {
             let classe = '';
             if (row["TIPOLOGIA"] === "Uscita") classe = 'uscita';
             else if (row["TIPOLOGIA"] === "Entrata") classe = 'entrata';
-
             tbody += `<tr class="${classe}">`;
             showHeaders.forEach(h => {
               tbody += `<td>${row[h] || ''}</td>`;
             });
             tbody += '</tr>';
           });
-
           $('#myTable tbody').html(tbody);
 
-          if (dataTableInstance) dataTableInstance.destroy();
+          let pageLength = 10;
+          let paging = true;
+
+          if (filter === 'today') {
+            paging = false;
+          } else {
+            pageLength = 15;
+          }
 
           dataTableInstance = $('#myTable').DataTable({
             order: [[showHeaders.indexOf("DATA"), 'desc']],
             language: {
               url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
-            }
+            },
+            paging: paging,
+            pageLength: pageLength,
+            lengthChange: false,
+            searching: true
           });
         }
       });
     }
 
-    reloadTable();
-    setInterval(reloadTable, 60000);
+    // Mostra dati oggi all'apertura
+    showFilteredData(currentFilter);
+
+    // Aggiorna dati ogni 60 secondi con filtro corrente
+    setInterval(() => {
+      showFilteredData(currentFilter);
+    }, 60000);
+
+    // Event listener su bottoni filtro
+    $('.filter-btn').on('click', function() {
+      const filter = $(this).data('filter');
+      showFilteredData(filter);
+    });
   </script>
 </body>
 </html>
