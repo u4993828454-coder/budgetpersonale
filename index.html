@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Filtri robusti</title>
+  <title>Budget Personale - Filtri avanzati</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
@@ -98,24 +98,26 @@
     function filterDataByDateRange(data, startDate, endDate, excludeToday = false) {
       return data.filter(row => {
         const rowDate = parseDate(row["DATA"]);
-        if(!rowDate) return false;
+        if (!rowDate) return false;
+
         if (excludeToday) {
           const todayMidnight = new Date();
           todayMidnight.setHours(0,0,0,0);
           if(rowDate.getTime() === todayMidnight.getTime()) {
-            return false; // esclude oggi
+            return false;
           }
         }
+
         return rowDate >= startDate && rowDate <= endDate;
       });
     }
 
-    function filterDataByMonth(data, monthNum) {
+    function filterDataByMonthAndYear(data, monthNum, yearNum) {
       if (!monthNum) return data;
       return data.filter(row => {
         const rowDate = parseDate(row["DATA"]);
         if (!rowDate) return false;
-        return (rowDate.getMonth() + 1) === monthNum;
+        return (rowDate.getMonth() + 1) === monthNum && rowDate.getFullYear() === yearNum;
       });
     }
 
@@ -124,7 +126,7 @@
 
       if (!data || data.length === 0) {
         $('#header-row').html('');
-        $('#myTable tbody').html('<tr><td colspan="10">Nessun dato disponibile</td></tr>');
+        $('#myTable tbody').html('<tr><td colspan="10" style="text-align:center;font-style:italic;">Nessun dato disponibile</td></tr>');
         return;
       }
 
@@ -214,12 +216,10 @@
               $('#month-filter-container').hide();
           }
 
-          // Se filtro per anno e c'è un mese selezionato, filtralo ulteriormente
           if(filter === 'year') {
-            const monthNum = parseInt($('#month-select').val(), 10);
-            if(monthNum) {
-              filteredData = filterDataByMonth(filteredData, monthNum);
-            }
+            const selectedMonth = parseInt($('#month-select').val(), 10);
+            const currentYear = new Date().getFullYear();
+            filteredData = filterDataByMonthAndYear(filteredData, selectedMonth, currentYear);
           }
 
           renderTable(filteredData, filter);
