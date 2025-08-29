@@ -182,7 +182,7 @@
     });
   }
 
-  function showFilteredData(filter) {
+    function showFilteredData(filter) {
     currentFilter = filter;
 
     Papa.parse(getCsvUrl(), {
@@ -192,8 +192,23 @@
       complete: function(results) {
         rawData = results.data;
 
+        console.log("Dati caricati dal CSV: ", rawData.length);
+        if(rawData.length > 0){
+          console.log("Intestazioni: ", Object.keys(rawData[0]));
+          console.log("Prime 10 date raw:");
+          for(let i=0; i<Math.min(10, rawData.length); i++){
+            console.log(rawData[i]["Data"]);
+          }
+        }
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+
+        // Test parsing date su primo record per capire se funziona
+        if(rawData.length > 0){
+          const testDate = parseDate(rawData[0]["Data"]);
+          console.log("Parsing prima ", rawData[0]["Data"], " =", testDate);
+        }
 
         let filteredData;
         switch(filter) {
@@ -232,29 +247,12 @@
           }
         }
 
+        console.log(`Righe filtrate (${filter}):`, filteredData.length);
+
         renderTable(filteredData, filter);
       }
     });
   }
-
-  $(document).ready(function() {
-    showFilteredData(currentFilter);
-
-    setInterval(() => {
-      showFilteredData(currentFilter);
-    }, 60000);
-
-    $('.filter-btn').on('click', function() {
-      $('.filter-btn').removeClass('active');
-      $(this).addClass('active');
-      $('#month-select').val('');
-      showFilteredData($(this).data('filter'));
-    });
-
-    $('#month-select').on('change', function() {
-      showFilteredData(currentFilter);
-    });
-  });
 </script>
 </body>
 </html>
