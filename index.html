@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Filtri con debug</title>
+  <title>Budget Personale - Filtri corretti</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
@@ -97,7 +97,7 @@
 
   function filterDataByDateRange(data, startDate, endDate, excludeToday = false) {
     return data.filter(row => {
-      const rowDate = parseDate(row["Data"]); // <-- attenzione al nome "Data"
+      const rowDate = parseDate(row["Data"]);
       if (!rowDate) return false;
 
       if (excludeToday) {
@@ -180,7 +180,6 @@
       lengthChange: false,
       searching: true
     });
-    console.log("Dati renderizzati: ", data.length);
   }
 
   function showFilteredData(filter) {
@@ -228,7 +227,9 @@
         if(filter === 'year') {
           const selectedMonth = parseInt($('#month-select').val(), 10);
           const currentYear = new Date().getFullYear();
-          filteredData = filterDataByMonthAndYear(filteredData, selectedMonth, currentYear);
+          if(!isNaN(selectedMonth) && selectedMonth > 0) {
+            filteredData = filterDataByMonthAndYear(filteredData, selectedMonth, currentYear);
+          }
         }
 
         renderTable(filteredData, filter);
