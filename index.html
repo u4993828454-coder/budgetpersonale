@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Elenco e Dettaglio Spese</title>
+  <title>Budget Personale - Elenco e Dettaglio Spese Aggiornato</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; }
@@ -79,6 +79,7 @@
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -86,29 +87,33 @@
 <script>
   $.fn.dataTable.moment('DD/MM/YYYY');
 
-  // URL CSVs
+  // Link CSV corretti
   const elencoUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
   const dettaglioUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=364007020&single=true&output=csv';
 
   let elencoData = [];
   let dettaglioData = [];
+  let currentView = 'elenco';
   let currentFilter = 'today';
 
-  // Funzioni parsing e filtri come prima (adattate per elenco)
+  const azzurroCols = ["TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE","SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"];
+  const gialloCols = ["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"];
+
   function parseDate(str) {
-    if(!str) return null;
-    const p = str.split('/');
-    if(p.length != 3) return null;
-    return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p[0],10));
+    if (!str) return null;
+    const parts = str.split('/');
+    if (parts.length !== 3) return null;
+    return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
   }
 
-  function filterByDateRange(data, start, end, excludeToday=false) {
+  function filterDateRange(data, start, end, excludeToday = false) {
     return data.filter(row => {
       const dt = parseDate(row["DATA"]);
-      if(!dt) return false;
-      if(excludeToday) {
-        const today = new Date(); today.setHours(0,0,0,0);
-        if(dt.getTime() === today.getTime()) return false;
+      if (!dt) return false;
+      if (excludeToday) {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        if (dt.getTime() === today.getTime()) return false;
       }
       return dt >= start && dt <= end;
     });
@@ -116,26 +121,28 @@
 
   function findPreviousMonthWithData(data) {
     const today = new Date();
-    let y = today.getFullYear();
-    let m = today.getMonth()-1;
-    let counts = {};
-    data.forEach(r=>{
-      const dt = parseDate(r["DATA"]);
-      if(!dt) return;
+    let year = today.getFullYear();
+    let month = today.getMonth() - 1;
+    const counts = {};
+    data.forEach(row => {
+      const dt = parseDate(row["DATA"]);
+      if (!dt) return;
       counts[dt.getFullYear()] = counts[dt.getFullYear()] || {};
-      counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()]||0)+1;
+      counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()] || 0) + 1;
     });
-    for(let i=0;i<24;i++){
-      if(counts[y] && counts[y][m]) return {year:y, month:m};
-      m--;
-      if(m < 0) { m=11; y--; }
+    for (let i = 0; i < 24; i++) {
+      if (counts[year] && counts[year][month]) return {year, month};
+      month--;
+      if (month < 0) {
+        month = 11;
+        year--;
+      }
     }
     return null;
   }
 
-  // Render tabella elenco
-  let elencoTableInstance = null;
-  function renderElencoTable(data, filter){
+  let elencoTableInstance;
+  function renderElencoTable(data, filter) {
     if(elencoTableInstance) elencoTableInstance.destroy();
     if(!data.length){
       $('#elenco-header').html('');
@@ -144,14 +151,14 @@
     }
     const headers = Object.keys(data[0]).filter(h => !["MESE","ANNO","MESE_1"].includes(h));
     $('#elenco-header').html(headers.map(h => `<th>${h}</th>`).join(''));
-    let body = '';
-    data.forEach(r=>{
-      const cls = r["TIPOLOGIA"] === 'Uscita' ? 'uscita' : (r["TIPOLOGIA"] === 'Entrata' ? 'entrata' : '');
-      body += '<tr class="'+cls+'">';
-      headers.forEach(h => body += `<td>${r[h]||''}</td>`);
-      body += '</tr>';
+    let rowsHTML = '';
+    data.forEach(row => {
+      const cls = row["TIPOLOGIA"] === "Uscita" ? 'uscita' : (row["TIPOLOGIA"] === "Entrata" ? 'entrata' : '');
+      rowsHTML += '<tr class="'+cls+'">';
+      headers.forEach(h => {rowsHTML += '<td>'+ (row[h] || '') +'</td>';});
+      rowsHTML += '</tr>';
     });
-    $('#elenco-table tbody').html(body);
+    $('#elenco-table tbody').html(rowsHTML);
     elencoTableInstance = $('#elenco-table').DataTable({
       order: [[headers.indexOf("DATA"), 'desc']],
       language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
@@ -163,12 +170,8 @@
     });
   }
 
-  // Render tabella dettaglio
-  let dettaglioTableInstance = null;
-  const azzurroCols = ["TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE","SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"];
-  const gialloCols = ["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"];
-
-  function renderDettaglioTable(data){
+  let dettaglioTableInstance;
+  function renderDettaglioTable(data) {
     if(dettaglioTableInstance) dettaglioTableInstance.destroy();
     if(!data.length){
       $('#dettaglio-header').html('');
@@ -176,21 +179,21 @@
       return;
     }
     const headers = Object.keys(data[0]);
-    $('#dettaglio-header').html(headers.map(h=>{
+    $('#dettaglio-header').html(headers.map(h => {
       let cls = '';
       if(azzurroCols.includes(h)) cls = 'header-azzurro';
       else if(gialloCols.includes(h)) cls = 'header-giallo';
       return `<th class="${cls}">${h}</th>`;
     }).join(''));
-    let body = '';
-    data.forEach(r=>{
-      body += '<tr>';
-      headers.forEach(h => body += `<td>${r[h]||''}</td>`);
-      body += '</tr>';
+    let bodyHTML = '';
+    data.forEach(row => {
+      bodyHTML += '<tr>';
+      headers.forEach(h => {bodyHTML += '<td>' + (row[h]||'') + '</td>';});
+      bodyHTML += '</tr>';
     });
-    $('#dettaglio-table tbody').html(body);
+    $('#dettaglio-table tbody').html(bodyHTML);
     dettaglioTableInstance = $('#dettaglio-table').DataTable({
-      order: [[0, 'asc']],
+      order: [[0,'asc']],
       language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
       paging: true,
       pageLength: 15,
@@ -200,50 +203,44 @@
     });
   }
 
-  // Filtra elenco spese per selezione filtro
   function applyElencoFilter(filter){
     const today = new Date();
     today.setHours(0,0,0,0);
     let filtered = [];
     switch(filter){
       case 'today':
-        filtered = filterByDateRange(elencoData,today,today);
+        filtered = filterDateRange(elencoData,today,today);
         break;
       case 'week':
-        let weekAgo = new Date(today); weekAgo.setDate(today.getDate()-7);
-        filtered = filterByDateRange(elencoData,weekAgo,today,true);
+        let weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate()-7);
+        filtered = filterDateRange(elencoData,weekAgo,today,true);
         break;
       case 'current-month':
-        let startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        let endMonth = new Date(today.getFullYear(), today.getMonth()+1, 0);
-        filtered = filterByDateRange(elencoData,startMonth,endMonth);
+        let startMonth = new Date(today.getFullYear(),today.getMonth(),1);
+        let endMonth = new Date(today.getFullYear(),today.getMonth() + 1, 0);
+        filtered = filterDateRange(elencoData,startMonth,endMonth);
         break;
       case 'previous-month':
         let recent = findPreviousMonthWithData(elencoData);
         if(!recent) filtered = [];
         else {
-          let st = new Date(recent.year,recent.month,1);
-          let en = new Date(recent.year,recent.month+1,0);
-          filtered = filterByDateRange(elencoData,st,en);
+          let startDate = new Date(recent.year, recent.month, 1);
+          let endDate = new Date(recent.year, recent.month +1 ,0);
+          filtered = filterDateRange(elencoData,startDate,endDate);
         }
         break;
       case 'all':
       default:
-        filtered = [...elencoData]; // copia e mostra tutto
+        filtered = [...elencoData];
         break;
     }
     renderElencoTable(filtered, filter);
   }
 
-  // Gestione menu e filtri
-  let elencoData = [];
-  let dettaglioData = [];
-  let currentView = 'elenco';
-  let currentFilter = 'today';
-
   function switchView(view){
     currentView = view;
-    if(view === "elenco"){
+    if(view === 'elenco'){
       $('#elenco-view').show();
       $('#dettaglio-view').hide();
       $('#filter-container').show();
@@ -255,34 +252,38 @@
       renderDettaglioTable(dettaglioData);
     }
     $('#sidebar li').removeClass('active');
-    $(`#sidebar li[data-view=${view}]`).addClass('active');
+    $('#sidebar li[data-view="'+view+'"]').addClass('active');
   }
 
+  let elencoData = [];
+  let dettaglioData = [];
+  let currentView = 'elenco';
+
   $(document).ready(() => {
-    // Carica elenco spese
     Papa.parse(elencoUrl, {
-      download: true, header: true, skipEmptyLines: true,
+      download: true,
+      header: true,
+      skipEmptyLines: true,
       complete: function(results){
         elencoData = results.data;
-        switchView('elenco'); // mostra subito elenco
+        switchView('elenco');
       }
     });
-    // Carica dettaglio spese
     Papa.parse(dettaglioUrl, {
-      download: true, header: true, skipEmptyLines: true,
+      download: true,
+      header: true,
+      skipEmptyLines: true,
       complete: function(results){
         dettaglioData = results.data;
       }
     });
 
-    // Gestione menu click
     $('#sidebar li').on('click', function(){
       const view = $(this).data('view');
       switchView(view);
     });
 
-    // Gestione filtri elenco
-    $('#filter-container').on('click','.filter-btn', function(){
+    $('#filter-container').on('click', '.filter-btn', function(){
       currentFilter = $(this).data('filter');
       $('#filter-container .filter-btn').removeClass('active');
       $(this).addClass('active');
