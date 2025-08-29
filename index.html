@@ -2,11 +2,11 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Dati Google Sheets</title>
+  <title>Dati dal Google Sheets</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
 </head>
 <body>
-  <h1>Dati Google Sheets</h1>
+  <h1>Dati dal Google Sheets</h1>
   <table id="myTable" class="display" style="width:100%">
     <thead>
       <tr>
@@ -27,9 +27,9 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
   <script>
-    // Qui mettere l'URL del CSV pubblicato da Google Sheets (o per test locale il file CSV)
-    const csvUrl = 'Copia-di-Copia-di-Template-Bilancio-Risposte-del-modulo-1.csv';
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
 
     Papa.parse(csvUrl, {
       download: true,
