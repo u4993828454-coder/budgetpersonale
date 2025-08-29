@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Filtri corretti</title>
+  <title>Budget Personale - Filtri veloci</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
@@ -21,14 +21,30 @@
       background-color: white;
     }
     #filter-container button.active {
-      background-color: #007BFF;
+      background-color: #007bff;
       color: white;
       border-color: #0056b3;
     }
     #month-filter-container {
       margin-top: 10px;
-      text-align: right;
+      text-align: center;
       display: none;
+    }
+    #month-filter-container button {
+      margin: 2px 3px;
+      padding: 4px 8px;
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 3px;
+      border: 1px solid #ccc;
+      background-color: white;
+      min-width: 60px;
+      user-select: none;
+    }
+    #month-filter-container button.active {
+      background-color: #28a745;
+      color: white;
+      border-color: #1e7e34;
     }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -48,23 +64,19 @@
     <button class="filter-btn" data-filter="year">Ultimo anno</button>
   </div>
 
-  <div id="month-filter-container">
-    <label for="month-select">Filtra per mese: </label>
-    <select id="month-select">
-      <option value="">Tutti</option>
-      <option value="1">Gennaio</option>
-      <option value="2">Febbraio</option>
-      <option value="3">Marzo</option>
-      <option value="4">Aprile</option>
-      <option value="5">Maggio</option>
-      <option value="6">Giugno</option>
-      <option value="7">Luglio</option>
-      <option value="8">Agosto</option>
-      <option value="9">Settembre</option>
-      <option value="10">Ottobre</option>
-      <option value="11">Novembre</option>
-      <option value="12">Dicembre</option>
-    </select>
+  <div id="month-filter-container" aria-label="Filtro mesi">
+    <button data-month="1">Gennaio</button>
+    <button data-month="2">Febbraio</button>
+    <button data-month="3">Marzo</button>
+    <button data-month="4">Aprile</button>
+    <button data-month="5">Maggio</button>
+    <button data-month="6">Giugno</button>
+    <button data-month="7">Luglio</button>
+    <button data-month="8">Agosto</button>
+    <button data-month="9">Settembre</button>
+    <button data-month="10">Ottobre</button>
+    <button data-month="11">Novembre</button>
+    <button data-month="12">Dicembre</button>
   </div>
 
   <table id="myTable" class="display" style="width:100%">
@@ -77,6 +89,7 @@
   let dataTableInstance;
   let currentFilter = 'today';
   let rawData = [];
+  let selectedMonth = null;
 
   $.fn.dataTable.moment('DD/MM/YYYY');
 
@@ -99,7 +112,6 @@
     return data.filter(row => {
       const rowDate = parseDate(row["DATA"]);
       if (!rowDate) return false;
-
       if (excludeToday) {
         const todayMidnight = new Date();
         todayMidnight.setHours(0,0,0,0);
@@ -107,7 +119,6 @@
           return false;
         }
       }
-
       return rowDate >= startDate && rowDate <= endDate;
     });
   }
@@ -147,104 +158,111 @@
     });
     $('#myTable tbody').html(tbody);
 
-    let pageLength = 10;
-    let paging = true;
-    let info = true;
-
-    if (filter === 'today') {
-      paging = false;
-      info = false;
-      pageLength = -1;
-    } else {
-      paging = true;
-      info = true;
-      pageLength = 15;
-    }
+    const pageLength = (filter === 'today') ? -1 : 15;
+    const paging = filter !== 'today';
+    const info = filter !== 'today';
 
     dataTableInstance = $('#myTable').DataTable({
       order: [[showHeaders.indexOf("DATA"), 'desc']],
       language: {
         url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
       },
-      paging: paging,
-      pageLength: pageLength,
-      info: info,
+      paging,
+      pageLength,
+      info,
       lengthChange: false,
       searching: true
     });
   }
 
-  function showFilteredData(filter) {
-    currentFilter = filter;
+  function applyFilter() {
+    const today = new Date();
+    today.setHours(0,0,0,0);
 
+    let filteredData;
+    switch(currentFilter) {
+      case 'today':
+        filteredData = filterDataByDateRange(rawData, today, today);
+        $('#month-filter-container').hide();
+        selectedMonth = null;
+        break;
+      case 'week':
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        filteredData = filterDataByDateRange(rawData, weekAgo, today, true);
+        $('#month-filter-container').hide();
+        selectedMonth = null;
+        break;
+      case 'month':
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(today.getMonth() -1);
+        filteredData = filterDataByDateRange(rawData, monthAgo, today, true);
+        $('#month-filter-container').hide();
+        selectedMonth = null;
+        break;
+      case 'year':
+        const yearAgo = new Date(today);
+        yearAgo.setFullYear(today.getFullYear() -1);
+        filteredData = filterDataByDateRange(rawData, yearAgo, today, true);
+        $('#month-filter-container').show();
+        if(selectedMonth) {
+          filteredData = filterDataByMonthAndYear(filteredData, selectedMonth, today.getFullYear());
+        }
+        break;
+      default:
+        filteredData = rawData;
+        $('#month-filter-container').hide();
+        selectedMonth = null;
+    }
+    renderTable(filteredData, currentFilter);
+  }
+
+  function showFilteredData(filter) {
+    if(filter !== currentFilter) {
+      currentFilter = filter;
+      selectedMonth = null;
+    }
+    
+    applyFilter();
+  }
+
+  $(document).ready(function() {
+    // Costruisco pulsanti mese
+    const monthContainer = $('#month-filter-container');
+    ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'].forEach((monthName, index) => {
+      const btn = $('<button>')
+        .text(monthName)
+        .attr('data-month', index+1)
+        .on('click', function() {
+          if($(this).hasClass('active')) {
+            selectedMonth = null;
+            $(this).removeClass('active');
+          } else {
+            selectedMonth = index + 1;
+            monthContainer.find('button').removeClass('active');
+            $(this).addClass('active');
+          }
+          applyFilter();
+        });
+      monthContainer.append(btn);
+    });
+
+    // Carico dati una volta sola all’avvio
     Papa.parse(getCsvUrl(), {
       download: true,
       header: true,
       skipEmptyLines: true,
       complete: function(results) {
         rawData = results.data;
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        let filteredData;
-        switch(filter) {
-          case 'today':
-            filteredData = filterDataByDateRange(rawData, today, today);
-            $('#month-filter-container').hide();
-            break;
-          case 'week':
-            const weekAgo = new Date(today);
-            weekAgo.setDate(today.getDate() - 7);
-            filteredData = filterDataByDateRange(rawData, weekAgo, today, true);
-            $('#month-filter-container').hide();
-            break;
-          case 'month':
-            const monthAgo = new Date(today);
-            monthAgo.setMonth(today.getMonth() - 1);
-            filteredData = filterDataByDateRange(rawData, monthAgo, today, true);
-            $('#month-filter-container').hide();
-            break;
-          case 'year':
-            const yearAgo = new Date(today);
-            yearAgo.setFullYear(today.getFullYear() - 1);
-            filteredData = filterDataByDateRange(rawData, yearAgo, today, true);
-            $('#month-filter-container').show();
-            break;
-          default:
-            filteredData = rawData;
-            $('#month-filter-container').hide();
-        }
-
-        if(filter === 'year') {
-          const selectedMonth = parseInt($('#month-select').val(), 10);
-          const currentYear = new Date().getFullYear();
-          if(!isNaN(selectedMonth) && selectedMonth > 0) {
-            filteredData = filterDataByMonthAndYear(filteredData, selectedMonth, currentYear);
-          }
-        }
-
-        renderTable(filteredData, filter);
+        showFilteredData(currentFilter);
+        setInterval(() => showFilteredData(currentFilter), 60000);
       }
     });
-  }
-
-  $(document).ready(function() {
-    showFilteredData(currentFilter);
-
-    setInterval(() => {
-      showFilteredData(currentFilter);
-    }, 60000);
 
     $('.filter-btn').on('click', function() {
       $('.filter-btn').removeClass('active');
       $(this).addClass('active');
-      $('#month-select').val('');
       showFilteredData($(this).data('filter'));
-    });
-
-    $('#month-select').on('change', function() {
-      showFilteredData(currentFilter);
     });
   });
 </script>
