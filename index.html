@@ -2,18 +2,18 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Filtraggio e colori</title>
+  <title>Budget Personale - Ordinamento Data</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
-    /* Colori per le righe */
-    .uscita {
-      background-color: #f8d7da !important; /* rosso chiaro */
-    }
-    .entrata {
-      background-color: #d4edda !important; /* verde chiaro */
-    }
+    .uscita { background-color: #f8d7da !important; }
+    .entrata { background-color: #d4edda !important; }
   </style>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+  <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
 </head>
 <body>
   <h1>Budget Personale - Google Sheets</h1>
@@ -23,12 +23,11 @@
     <tbody></tbody>
   </table>
 
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script>
     const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
     let dataTableInstance;
+
+    $.fn.dataTable.moment('DD/MM/YYYY'); // registra formattazione data
 
     function reloadTable() {
       Papa.parse(csvUrl, {
@@ -42,19 +41,15 @@
             return;
           }
           const allHeaders = Object.keys(data[0]);
-          // Headers da mostrare (elimina MESE, ANNO, MESE_1)
           const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
           $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
 
           let tbody = '';
           data.forEach(row => {
-            // Gestione classi colore per riga
             let classe = '';
-            if (row["TIPOLOGIA"] === "Uscita") {
-              classe = 'uscita';
-            } else if (row["TIPOLOGIA"] === "Entrata") {
-              classe = 'entrata';
-            }
+            if (row["TIPOLOGIA"] === "Uscita") classe = 'uscita';
+            else if (row["TIPOLOGIA"] === "Entrata") classe = 'entrata';
+
             tbody += `<tr class="${classe}">`;
             showHeaders.forEach(h => {
               tbody += `<td>${row[h] || ''}</td>`;
@@ -70,8 +65,7 @@
             order: [[showHeaders.indexOf("DATA"), 'desc']],
             language: {
               url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
-            },
-            // Nasconde le colonne che non servono (già rimosse in costruzione della tabella)
+            }
           });
         }
       });
