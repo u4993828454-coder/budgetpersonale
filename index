@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dati Google Sheets</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
+</head>
+<body>
+  <h1>Dati Google Sheets</h1>
+  <table id="myTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>Informazioni cronologiche</th>
+        <th>Data</th>
+        <th>Importo (€)</th>
+        <th>Tipo movimento</th>
+        <th>Categoria uscita</th>
+        <th>Categoria entrata</th>
+        <th>Da</th>
+        <th>A</th>
+        <th>Conto</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script>
+    // Qui mettere l'URL del CSV pubblicato da Google Sheets (o per test locale il file CSV)
+    const csvUrl = 'Copia-di-Copia-di-Template-Bilancio-Risposte-del-modulo-1.csv';
+
+    Papa.parse(csvUrl, {
+      download: true,
+      header: true,
+      complete: function(results) {
+        let data = results.data;
+        let tbody = '';
+
+        data.forEach(row => {
+          tbody += '<tr>';
+          tbody += `<td>${row["Informazioni cronologiche"] || ''}</td>`;
+          tbody += `<td>${row["Data (gg/mm/aaaa)"] || ''}</td>`;
+          tbody += `<td>${row["Importo (€)"] || ''}</td>`;
+          tbody += `<td>${row["Tipo movimento"] || ''}</td>`;
+          tbody += `<td>${row["Categoria uscita"] || ''}</td>`;
+          tbody += `<td>${row["Categoria entrata"] || ''}</td>`;
+          tbody += `<td>${row["Da"] || ''}</td>`;
+          tbody += `<td>${row["A"] || ''}</td>`;
+          tbody += `<td>${row["Conto"] || ''}</td>`;
+          tbody += '</tr>';
+        });
+
+        $('#myTable tbody').html(tbody);
+
+        $('#myTable').DataTable({
+          language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json'
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>
