@@ -1,248 +1,295 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8" />
-<title>Budget Personale - Elenco e Dettaglio Spese</title>
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-  }
-  #sidebar {
-    width: 220px;
-    height: 100vh;
-    position: fixed;
-    background: #f8f9fa;
-    border-right: 1px solid #ddd;
-    padding-top: 20px;
-    box-sizing: border-box;
-  }
-  #sidebar ul {
-    list-style-type: none;
-    padding-left: 0;
-  }
-  #sidebar ul li {
-    padding: 12px 20px;
-    cursor: pointer;
-    font-weight: bold;
-    border-left: 5px solid transparent;
-    user-select: none;
-  }
-  #sidebar ul li.active {
-    background-color: #007bff;
-    color: white;
-    border-left-color: #0056b3;
-  }
-  #content {
-    margin-left: 220px;
-    padding: 20px;
-  }
-  h1 {
-    margin-top: 0;
-  }
-  /* Colors for second table headers */
-  .header-azzurro {
-    background-color: #cce5ff !important;
-  }
-  .header-giallo {
-    background-color: #fff3cd !important;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Budget Personale - Elenco e Dettaglio Spese</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; }
+    #sidebar {
+      width: 220px;
+      background: #f8f9fa;
+      border-right: 1px solid #ddd;
+      padding-top: 30px;
+      box-sizing: border-box;
+    }
+    #sidebar ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+    }
+    #sidebar li {
+      padding: 15px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      border-left: 5px solid transparent;
+      user-select: none;
+    }
+    #sidebar li.active {
+      background-color: #007bff;
+      color: white;
+      border-left-color: #0056b3;
+    }
+    #content {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+    }
+    h1 { margin-top: 0; }
+    .uscita { background-color: #f8d7da !important; }
+    .entrata { background-color: #d4edda !important; }
+    /* Colorazioni headers per dettaglio spese */
+    .header-azzurro {
+      background-color: #cce5ff !important;
+    }
+    .header-giallo {
+      background-color: #fff3cd !important;
+    }
+  </style>
 </head>
 <body>
 
 <div id="sidebar">
   <ul>
-    <li class="active" data-view="elenco">Elenco Spese</li>
+    <li data-view="elenco" class="active">Elenco Spese</li>
     <li data-view="dettaglio">Dettaglio Spese</li>
   </ul>
 </div>
 
 <div id="content">
-  <!-- Content will be loaded here -->
-  <div id="filters-container" style="margin-bottom:10px;">
-    <button class="filter-btn active" data-filter="today">Oggi</button>
-    <button class="filter-btn" data-filter="week">Ultima settimana</button>
-    <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
-    <button class="filter-btn" data-filter="previous-month">Mese prec.</button>
-    <button class="filter-btn" data-filter="all">Tutte le transazioni</button>
+  <div id="elenco-view">
+    <div id="filter-container" style="margin-bottom:10px;">
+      <button class="filter-btn active" data-filter="today">Oggi</button>
+      <button class="filter-btn" data-filter="week">Ultima settimana</button>
+      <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
+      <button class="filter-btn" data-filter="previous-month">Mese precedente più recente</button>
+      <button class="filter-btn" data-filter="all">Tutte le transazioni</button>
+    </div>
+    <table id="elenco-table" class="display" style="width:100%">
+      <thead><tr id="elenco-header"></tr></thead>
+      <tbody></tbody>
+    </table>
   </div>
-  
-  <table id="table" class="display" style="width:100%">
-    <thead><tr id="table-header"></tr></thead>
-    <tbody></tbody>
-  </table>
+  <div id="dettaglio-view" style="display:none;">
+    <table id="dettaglio-table" class="display" style="width:100%">
+      <thead><tr id="dettaglio-header"></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <script>
-  const elencoCSV = "https://u4993828454-coder.github.io/budgetpersonale/elencospese.csv"; // cambia con link preciso
-  const dettaglioCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1-wfederalfake-csvlink/pub?gid=364020&single=true&output=csv"; // inserisci il link preciso CSV dettaglio
+  $.fn.dataTable.moment('DD/MM/YYYY');
 
-  let currentView = "elenco";
-  let currentFilter = "today";
-  let rawElenco = [], rawDettaglio = [];
-  let tableInstance = null;
+  // URL CSVs
+  const elencoUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
+  const dettaglioUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=364007020&single=true&output=csv';
 
-  const azzurroHeaders = ["TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
-    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"];
-  const gialloHeaders = ["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"];
+  let elencoData = [];
+  let dettaglioData = [];
+  let currentFilter = 'today';
 
-  $.fn.dataTable.moment("DD/MM/YYYY");
-
-  function parseDate(str){
-    if (!str) return null;
-    const p = str.split("/");
-    if(p.length!=3) return null;
-    let d = parseInt(p[0],10), m = parseInt(p[1],10)-1, y = parseInt(p[2],10);
-    let dt = new Date(y,m,d);
-    return isNaN(dt.getTime()) ? null : dt;
+  // Funzioni parsing e filtri come prima (adattate per elenco)
+  function parseDate(str) {
+    if(!str) return null;
+    const p = str.split('/');
+    if(p.length != 3) return null;
+    return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p[0],10));
   }
 
-  function filterByDate(data,start,end,excludeToday=false){
-    return data.filter(r=>{
-      let dt = parseDate(r["DATA"]);
-      if (!dt) return false;
-      if (excludeToday){
-        let today = new Date();
-        today.setHours(0,0,0,0);
-        if (dt.getTime() === today.getTime()) return false;
+  function filterByDateRange(data, start, end, excludeToday=false) {
+    return data.filter(row => {
+      const dt = parseDate(row["DATA"]);
+      if(!dt) return false;
+      if(excludeToday) {
+        const today = new Date(); today.setHours(0,0,0,0);
+        if(dt.getTime() === today.getTime()) return false;
       }
-      return (dt >= start && dt <= end);
+      return dt >= start && dt <= end;
     });
   }
 
-  function findRecentMonthData(data){
-    let now = new Date();
-    let y=now.getFullYear(), m=now.getMonth()-1;
-    let countMap = {};
+  function findPreviousMonthWithData(data) {
+    const today = new Date();
+    let y = today.getFullYear();
+    let m = today.getMonth()-1;
+    let counts = {};
     data.forEach(r=>{
-      let dt=parseDate(r["DATA"]);
+      const dt = parseDate(r["DATA"]);
       if(!dt) return;
-      if(!(dt.getFullYear() in countMap)) countMap[dt.getFullYear()] = {};
-      countMap[dt.getFullYear()][dt.getMonth()] = (countMap[dt.getFullYear()][dt.getMonth()]||0) +1;
+      counts[dt.getFullYear()] = counts[dt.getFullYear()] || {};
+      counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()]||0)+1;
     });
     for(let i=0;i<24;i++){
-      if (countMap[y] && countMap[y][m]) return {year:y, month:m};
+      if(counts[y] && counts[y][m]) return {year:y, month:m};
       m--;
-      if(m<0){ m=11; y--;}
+      if(m < 0) { m=11; y--; }
     }
     return null;
   }
 
-  function sortByDateDesc(data){
-    return data.sort((a,b)=>{
-      let da=parseDate(a["DATA"]);
-      let db=parseDate(b["DATA"]);
-      if(!da) return 1;
-      if(!db) return -1;
-      return db - da;
+  // Render tabella elenco
+  let elencoTableInstance = null;
+  function renderElencoTable(data, filter){
+    if(elencoTableInstance) elencoTableInstance.destroy();
+    if(!data.length){
+      $('#elenco-header').html('');
+      $('#elenco-table tbody').html('<tr><td colspan="20" style="text-align:center; font-style:italic;">Nessun dato disponibile</td></tr>');
+      return;
+    }
+    const headers = Object.keys(data[0]).filter(h => !["MESE","ANNO","MESE_1"].includes(h));
+    $('#elenco-header').html(headers.map(h => `<th>${h}</th>`).join(''));
+    let body = '';
+    data.forEach(r=>{
+      const cls = r["TIPOLOGIA"] === 'Uscita' ? 'uscita' : (r["TIPOLOGIA"] === 'Entrata' ? 'entrata' : '');
+      body += '<tr class="'+cls+'">';
+      headers.forEach(h => body += `<td>${r[h]||''}</td>`);
+      body += '</tr>';
+    });
+    $('#elenco-table tbody').html(body);
+    elencoTableInstance = $('#elenco-table').DataTable({
+      order: [[headers.indexOf("DATA"), 'desc']],
+      language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
+      paging: filter !== 'today',
+      pageLength: filter === 'today' ? -1 : 15,
+      lengthChange: false,
+      searching: true,
+      info: filter !== 'today'
     });
   }
 
-  function buildTable(data){
-    if(tableInstance) tableInstance.destroy();
+  // Render tabella dettaglio
+  let dettaglioTableInstance = null;
+  const azzurroCols = ["TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE","SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"];
+  const gialloCols = ["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"];
+
+  function renderDettaglioTable(data){
+    if(dettaglioTableInstance) dettaglioTableInstance.destroy();
     if(!data.length){
-      $("#table-header").html("");
-      $("#table tbody").html('<tr><td colspan="20" style="text-align:center; font-style:italic;">Nessun dato disponibile</td></tr>');
+      $('#dettaglio-header').html('');
+      $('#dettaglio-table tbody').html('<tr><td colspan="30" style="text-align:center; font-style:italic;">Nessun dato disponibile</td></tr>');
       return;
     }
-    let headers = Object.keys(data[0]).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
-    let headerHTML = "";
-    headers.forEach(h=>{
-      let c=null;
-      if (azzurroHeaders.includes(h)) c = 'background-color:#cce5ff;';
-      else if (gialloHeaders.includes(h)) c = 'background-color:#fff3cd;';
-      headerHTML += `<th style="${c||""}">${h}</th>`;
-    });
-    $("#table-header").html(headerHTML);
-
-    let rowsHTML="";
+    const headers = Object.keys(data[0]);
+    $('#dettaglio-header').html(headers.map(h=>{
+      let cls = '';
+      if(azzurroCols.includes(h)) cls = 'header-azzurro';
+      else if(gialloCols.includes(h)) cls = 'header-giallo';
+      return `<th class="${cls}">${h}</th>`;
+    }).join(''));
+    let body = '';
     data.forEach(r=>{
-      let cls="";
-      if(r["TIPOLOGIA"] === "Uscita") cls="uscita";
-      else if(r["TIPOLOGIA"]==="Entrata") cls="entrata";
-      rowsHTML += `<tr class="${cls}">`;
-      headers.forEach(h=>{ rowsHTML+= `<td>${r[h] || ""}</td>`; });
-      rowsHTML += `</tr>`;
+      body += '<tr>';
+      headers.forEach(h => body += `<td>${r[h]||''}</td>`);
+      body += '</tr>';
     });
-    $("#table tbody").html(rowsHTML);
-
-    tableInstance = $("#table").DataTable({
-      order:[[headers.indexOf("DATA"),'desc']],
-      language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
+    $('#dettaglio-table tbody').html(body);
+    dettaglioTableInstance = $('#dettaglio-table').DataTable({
+      order: [[0, 'asc']],
+      language: { url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
+      paging: true,
       pageLength: 15,
       lengthChange: false,
       searching: true,
-      paging: true,
       info: true
     });
   }
 
-  function applyFilter(){
-    let filtered = [];
-    let today = new Date();
+  // Filtra elenco spese per selezione filtro
+  function applyElencoFilter(filter){
+    const today = new Date();
     today.setHours(0,0,0,0);
-
-    switch(currentFilter){
-      case "today":
-        filtered = filterByDate(rawElenco,new Date(today),new Date(today));
+    let filtered = [];
+    switch(filter){
+      case 'today':
+        filtered = filterByDateRange(elencoData,today,today);
         break;
-      case "week":
-        let weekAgo = new Date(today);
-        weekAgo.setDate(weekAgo.getDate()-7);
-        filtered = filterByDate(rawElenco, weekAgo, today, true);
+      case 'week':
+        let weekAgo = new Date(today); weekAgo.setDate(today.getDate()-7);
+        filtered = filterByDateRange(elencoData,weekAgo,today,true);
         break;
-      case "current-month":
-        let startMonth = new Date(today.getFullYear(),today.getMonth(),1);
-        let endMonth = new Date(today.getFullYear(),today.getMonth()+1,0);
-        filtered = filterByDate(rawElenco,startMonth,endMonth);
+      case 'current-month':
+        let startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        let endMonth = new Date(today.getFullYear(), today.getMonth()+1, 0);
+        filtered = filterByDateRange(elencoData,startMonth,endMonth);
         break;
-      case "previous-month":
-        let recent = findRecentMonthData(rawElenco);
+      case 'previous-month':
+        let recent = findPreviousMonthWithData(elencoData);
         if(!recent) filtered = [];
         else {
           let st = new Date(recent.year,recent.month,1);
           let en = new Date(recent.year,recent.month+1,0);
-          filtered = filterByDate(rawElenco,st,en);
+          filtered = filterByDateRange(elencoData,st,en);
         }
         break;
-      case "all":
-        filtered = sortByDateDesc(rawElenco);
+      case 'all':
+      default:
+        filtered = [...elencoData]; // copia e mostra tutto
         break;
     }
-    buildTable(filtered);
+    renderElencoTable(filtered, filter);
   }
 
-  function changeView(view){
-    currentFilter = view;
-    applyFilter();
+  // Gestione menu e filtri
+  let elencoData = [];
+  let dettaglioData = [];
+  let currentView = 'elenco';
+  let currentFilter = 'today';
+
+  function switchView(view){
+    currentView = view;
+    if(view === "elenco"){
+      $('#elenco-view').show();
+      $('#dettaglio-view').hide();
+      $('#filter-container').show();
+      applyElencoFilter(currentFilter);
+    } else {
+      $('#elenco-view').hide();
+      $('#dettaglio-view').show();
+      $('#filter-container').hide();
+      renderDettaglioTable(dettaglioData);
+    }
+    $('#sidebar li').removeClass('active');
+    $(`#sidebar li[data-view=${view}]`).addClass('active');
   }
 
-  $(document).ready(function(){
-    Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1-wrealCSVlink/pub?gid=143189380&single=true&output=csv",{
-      download:true,
-      header:true,
-      skipEmptyLines:true,
-      complete:function(results){
-        rawElenco = results.data;
-        applyFilter();
-        setInterval(applyFilter, 60000);
+  $(document).ready(() => {
+    // Carica elenco spese
+    Papa.parse(elencoUrl, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: function(results){
+        elencoData = results.data;
+        switchView('elenco'); // mostra subito elenco
+      }
+    });
+    // Carica dettaglio spese
+    Papa.parse(dettaglioUrl, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: function(results){
+        dettaglioData = results.data;
       }
     });
 
-    $(".filter-btn").click(function(){
-      $(".filter-btn").removeClass("active");
-      $(this).addClass("active");
-      changeView($(this).data("filter"));
+    // Gestione menu click
+    $('#sidebar li').on('click', function(){
+      const view = $(this).data('view');
+      switchView(view);
+    });
+
+    // Gestione filtri elenco
+    $('#filter-container').on('click','.filter-btn', function(){
+      currentFilter = $(this).data('filter');
+      $('#filter-container .filter-btn').removeClass('active');
+      $(this).addClass('active');
+      applyElencoFilter(currentFilter);
     });
   });
-
 </script>
+
 </body>
 </html>
