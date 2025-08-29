@@ -2,13 +2,12 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Filtri e colori</title>
+  <title>Budget Personale - Filtri e paginazione</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
     .uscita { background-color: #f8d7da !important; }
     .entrata { background-color: #d4edda !important; }
-    /* Container bottoni filtro */
     #filter-container {
       text-align: right;
       margin-bottom: 10px;
@@ -44,7 +43,7 @@
   <script>
     const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
     let dataTableInstance;
-    let currentFilter = 'today'; // filtro iniziale
+    let currentFilter = 'today';
 
     $.fn.dataTable.moment('DD/MM/YYYY');
 
@@ -114,10 +113,15 @@
 
           let pageLength = 10;
           let paging = true;
+          let info = true;
 
           if (filter === 'today') {
             paging = false;
+            info = false;
+            pageLength = -1;
           } else {
+            paging = true;
+            info = true;
             pageLength = 15;
           }
 
@@ -128,6 +132,7 @@
             },
             paging: paging,
             pageLength: pageLength,
+            info: info,
             lengthChange: false,
             searching: true
           });
@@ -135,15 +140,12 @@
       });
     }
 
-    // Mostra dati oggi all'apertura
     showFilteredData(currentFilter);
 
-    // Aggiorna dati ogni 60 secondi con filtro corrente
     setInterval(() => {
       showFilteredData(currentFilter);
     }, 60000);
 
-    // Event listener su bottoni filtro
     $('.filter-btn').on('click', function() {
       const filter = $(this).data('filter');
       showFilteredData(filter);
