@@ -9,30 +9,20 @@
     .uscita { background-color: #f8d7da !important; }
     .entrata { background-color: #d4edda !important; }
     #filter-container {
-      text-align: right;
-      margin-bottom: 10px;
+      text-align: right; margin-bottom: 10px;
     }
     #filter-container button {
-      margin-left: 5px;
-      padding: 5px 10px;
-      font-size: 14px;
-      cursor: pointer;
-      border: 1px solid #ccc;
-      background-color: white;
+      margin-left: 5px; padding: 5px 10px; font-size: 14px;
+      cursor: pointer; border: 1px solid #ccc; background-color: white;
     }
     #filter-container button.active {
-      background-color: #007bff;
-      color: white;
-      border-color: #0056b3;
+      background-color: #007bff; color: white; border-color: #0056b3;
     }
     #year-select-container {
-      margin: 10px 0;
-      display: none;
-      text-align: left;
+      margin: 10px 0; display: none; text-align: left;
     }
     #year-select {
-      padding: 5px 8px;
-      font-size: 14px;
+      padding: 5px 8px; font-size: 14px;
     }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -42,34 +32,35 @@
   <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
 </head>
 <body>
-  <h1>Budget Personale - Google Sheets</h1>
-  <p>La tabella si aggiorna automaticamente ogni 60 secondi.</p>
 
-  <div id="filter-container">
-    <button class="filter-btn active" data-filter="today">Oggi</button>
-    <button class="filter-btn" data-filter="week">Ultima settimana</button>
-    <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
-    <button class="filter-btn" data-filter="previous-month">Mese precedente più recente</button>
-    <button class="filter-btn" data-filter="all">Tutte le transazioni</button>
-  </div>
+<h1>Budget Personale - Google Sheets</h1>
+<p>La tabella si aggiorna automaticamente ogni 60 secondi.</p>
 
-  <div id="year-select-container">
-    <label for="year-select">Seleziona anno per ricerca: </label>
-    <select id="year-select"> </select>
-  </div>
+<div id="filter-container">
+  <button class="filter-btn active" data-filter="today">Oggi</button>
+  <button class="filter-btn" data-filter="week">Ultima settimana</button>
+  <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
+  <button class="filter-btn" data-filter="previous-month">Mese precedente più recente</button>
+  <button class="filter-btn" data-filter="all">Tutte le transazioni</button>
+</div>
 
-  <table id="myTable" class="display" style="width:100%">
-    <thead><tr id="header-row"></tr></thead>
-    <tbody></tbody>
-  </table>
+<div id="year-select-container">
+  <label for="year-select">Seleziona anno per ricerca:</label>
+  <select id="year-select"></select>
+</div>
+
+<table id="myTable" class="display" style="width:100%">
+  <thead><tr id="header-row"></tr></thead>
+  <tbody></tbody>
+</table>
 
 <script>
   const csvBaseUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
   let dataTableInstance;
   let currentFilter = 'today';
   let rawData = [];
-  let monthNames = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-  let selectedYear;
+  const monthNames = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  let selectedYear = new Date().getFullYear();
 
   $.fn.dataTable.moment('DD/MM/YYYY');
 
@@ -104,7 +95,7 @@
   function findRecentMonthWithData(data) {
     const today = new Date();
     let year = today.getFullYear();
-    let month = today.getMonth() - 1; // mese precedente
+    let month = today.getMonth() -1;
 
     const counts = {};
     data.forEach(row => {
@@ -114,129 +105,119 @@
       counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()] || 0) + 1;
     });
 
-    for(let i=0; i<24; i++) {
+    for (let i=0; i<24; i++){
       if (counts[year] && counts[year][month] > 0) {
-        return { year, month };
+        return {year, month};
       }
       month--;
-      if (month < 0) {
-        month = 11;
+      if (month <0){
+        month=11;
         year--;
       }
     }
     return null;
   }
 
-  function getUniqueYears(data) {
+  function getUniqueYears(data){
     const years = new Set();
     data.forEach(row => {
       const dt = parseDate(row["DATA"]);
-      if (dt) years.add(dt.getFullYear());
+      if(dt) years.add(dt.getFullYear());
     });
-    return Array.from(years).sort((a,b) => b - a);
+    return Array.from(years).sort((a,b) => b-a);
   }
 
-  function buildYearSelect(years) {
+  function buildYearSelect(years){
     const select = $('#year-select');
     select.empty();
-    years.forEach(yr => {
-      const opt = $('<option>').val(yr).text(yr);
-      select.append(opt);
+    years.forEach(y => {
+      select.append($('<option>').val(y).text(y));
     });
     selectedYear = new Date().getFullYear();
     select.val(selectedYear);
     $('#year-select-container').toggle(years.length > 1);
   }
 
-  function buildTable(data, filter) {
-    if (dataTableInstance) dataTableInstance.destroy();
-    if (!data || data.length === 0) {
+  function renderTable(data, filter){
+    if(dataTableInstance) dataTableInstance.destroy();
+
+    if(!data || data.length === 0){
       $('#header-row').html('');
-      $('#myTable tbody').html('<tr><td colspan="10" style="text-align:center;font-style:italic;">Nessun dato disponibile</td></tr>');
+      $('#myTable tbody').html(
+        '<tr><td colspan="10" style="text-align:center;font-style:italic;">Nessun dato disponibile</td></tr>'
+      );
       return;
     }
 
     const allHeaders = Object.keys(data[0]);
-    const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
+    const showHeaders = allHeaders.filter(h => !["MESE","ANNO","MESE_1"].includes(h));
     $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
 
     let tbody = '';
     data.forEach(row => {
       let classe = '';
-      if(row["TIPOLOGIA"] === "Uscita") classe = 'uscita';
-      else if(row["TIPOLOGIA"] === "Entrata") classe = 'entrata';
+      if(row["TIPOLOGIA"] === "Uscita") classe='uscita';
+      else if(row["TIPOLOGIA"] === "Entrata") classe='entrata';
       tbody += `<tr class="${classe}">`;
       showHeaders.forEach(h => {
-        tbody += `<td>${row[h] || ''}</td>`;
+        tbody+= `<td>${row[h] || ''}</td>`;
       });
       tbody += '</tr>';
     });
     $('#myTable tbody').html(tbody);
 
-    const pageLength = (filter === "today") ? -1 : 15;
-    const paging = filter !== "today";
-    const info = filter !== "today";
+    const pageLength = filter === 'today' ? -1 : 15;
+    const paging = filter !== 'today';
+    const info = filter !== 'today';
 
     dataTableInstance = $('#myTable').DataTable({
       order: [[showHeaders.indexOf("DATA"), 'desc']],
       language: {
         url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
       },
-      paging: paging,
-      pageLength: pageLength,
-      info: info,
+      paging,
+      pageLength,
+      info,
       lengthChange: false,
       searching: true
     });
   }
 
-  function filterDataByMonthAndYear(data, monthName, year) {
-    if (!monthName) return data;
-    const monthNum = monthNames.indexOf(monthName.toLowerCase()) + 1;
-    if (monthNum <= 0 || !year) return data;
-    return data.filter(row => {
-      const dt = parseDate(row["DATA"]);
-      if (!dt) return false;
-      return dt.getMonth() + 1 === monthNum && dt.getFullYear() === year;
-    });
-  }
-
-  function applyFilter() {
+  function applyFilter(){
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0,0,0,0);
 
-    let filteredData;
+    let filteredData = [];
     switch(currentFilter) {
-      case "today":
+      case 'today':
         filteredData = filterDataByDateRange(rawData, today, today);
         $('#year-select-container').hide();
         break;
-      case "week":
+      case 'week':
         const weekAgo = new Date(today);
-        weekAgo.setDate(today.getDate() - 7);
+        weekAgo.setDate(today.getDate()-7);
         filteredData = filterDataByDateRange(rawData, weekAgo, today, true);
         $('#year-select-container').hide();
         break;
-      case "current-month":
+      case 'current-month':
         const startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const endMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const endMonth = new Date(today.getFullYear(), today.getMonth()+1, 0);
         filteredData = filterDataByDateRange(rawData, startMonth, endMonth);
         $('#year-select-container').hide();
         break;
-      case "previous-month":
+      case 'previous-month':
         const recent = findRecentMonthWithData(rawData);
-        if (!recent) {
+        if(!recent){
           filteredData = [];
-          break;
+        } else {
+          const startDate = new Date(recent.year, recent.month, 1);
+          const endDate = new Date(recent.year, recent.month+1, 0);
+          filteredData = filterDataByDateRange(rawData, startDate, endDate);
         }
-        const startDate = new Date(recent.year, recent.month, 1);
-        const endDate = new Date(recent.year, recent.month + 1, 0);
-        filteredData = filterDataByDateRange(rawData, startDate, endDate);
         $('#year-select-container').hide();
         break;
-      case "all":
+      case 'all':
         filteredData = rawData;
-        // Se ci sono più anni, mostra selettore anno per la ricerca libera
         const years = getUniqueYears(rawData);
         buildYearSelect(years);
         break;
@@ -245,31 +226,18 @@
         $('#year-select-container').hide();
     }
 
-    // Se filtro "all" e anno selezionato + barra ricerca, filtra per mese e anno
-    if(currentFilter === "all" && selectedYear){
-      // Usa la ricerca di DataTables per mese + anno
-      // Qui puoi far andare la ricerca personalizzata al momento
+    if(currentFilter === 'all' && selectedYear){
       const table = $('#myTable').DataTable();
-      const searchTerm = $('#myTable_filter input').val() || "";
-      // Compongo filtro semplice per matrch mese e anno nel testo
-      // NON rigenero la tabella, uso filtro DataTables interno
-      // Qui intercetta in 'search' la parola inserita (es: "agosto 2025")
-      // Aggiorna filtro personalizzato
+      const searchTerm = $('#myTable_filter input').val().toLowerCase() || '';
       $.fn.dataTable.ext.search = [
-        function(settings, data, dataIndex) {
-          const dateColIndex = $('#myTable thead th').index($("#myTable thead th:contains('DATA')"));
-          if (dateColIndex === -1) return true;
-          const textData = data[dateColIndex] || "";
-          const lower = searchTerm.toLowerCase();
-          // Verifica presenza mese e anno
-          const monthsLower = monthNames.map(m => m.toLowerCase());
-          const hasMonth = monthsLower.some(m => lower.indexOf(m) >= 0 ? textData.toLowerCase().indexOf(m) >= 0 : false);
-          const hasYear = lower.indexOf(selectedYear.toString()) >= 0;
-          // Vuol dire se nel testo ricerca ci sono mese e anno, devono corrispondere nel dato
-          if (hasMonth && hasYear) return true;
-          // Se ricerca vuota o non specifica, passa tutto
-          if (!lower.trim()) return true;
-          // Altrimenti ritorna false (escludi)
+        function(settings, data, dataIndex){
+          const dateColIdx = $('#myTable thead th').index($("#myTable thead th:contains('DATA')"));
+          let cellText = data[dateColIdx].toLowerCase();
+          const monthMatch = monthNames.some(m => searchTerm.includes(m) && cellText.includes(m));
+          const yearMatch = cellText.includes(selectedYear.toString());
+          if((monthMatch && yearMatch) || searchTerm.trim() === ''){
+            return true;
+          }
           return false;
         }
       ];
@@ -281,7 +249,7 @@
     renderTable(filteredData, currentFilter);
   }
 
-  function showFilteredData(filter) {
+  function showFilteredData(filter){
     if(filter !== currentFilter){
       currentFilter = filter;
       selectedYear = null;
@@ -290,27 +258,26 @@
   }
 
   $(document).ready(() => {
-    Papa.parse(getCsvUrl(), {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
+    Papa.parse(getCsvUrl(),{
+      download:true,
+      header:true,
+      skipEmptyLines:true,
+      complete:(results) => {
         rawData = results.data;
         showFilteredData(currentFilter);
         setInterval(() => showFilteredData(currentFilter), 60000);
       }
     });
 
-    $('.filter-btn').on('click', function() {
+    $('.filter-btn').on('click', function(){
       $('.filter-btn').removeClass('active');
       $(this).addClass('active');
       showFilteredData($(this).data('filter'));
     });
 
-    // Cambio anno selezionato per ricerca libera
-    $('#year-select').on('change', function() {
+    $('#year-select').on('change', function(){
       selectedYear = parseInt($(this).val());
-      if(currentFilter === "all"){
+      if(currentFilter === 'all'){
         applyFilter();
       }
     });
