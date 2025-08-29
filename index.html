@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Debug filtro anno</title>
+  <title>Budget Personale - Filtri con debug</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
@@ -38,8 +38,8 @@
   <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
 </head>
 <body>
-  <h1>Budget Personale - Debug filtro anno</h1>
-  <p>Controlla la console per i messaggi di debug.</p>
+  <h1>Budget Personale - Google Sheets</h1>
+  <p>La tabella si aggiorna automaticamente ogni 60 secondi.</p>
 
   <div id="filter-container">
     <button class="filter-btn active" data-filter="today">Oggi</button>
@@ -72,191 +72,188 @@
     <tbody></tbody>
   </table>
 
-  <script>
-    const csvBaseUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
-    let dataTableInstance;
-    let currentFilter = 'today';
-    let rawData = [];
+<script>
+  const csvBaseUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
+  let dataTableInstance;
+  let currentFilter = 'today';
+  let rawData = [];
 
-    $.fn.dataTable.moment('DD/MM/YYYY');
+  $.fn.dataTable.moment('DD/MM/YYYY');
 
-    function getCsvUrl() {
-      return csvBaseUrl + '&cb=' + new Date().getTime();
-    }
+  function getCsvUrl() {
+    return csvBaseUrl + '&cb=' + new Date().getTime();
+  }
 
-    function parseDate(str) {
-      if (!str) return null;
-      const parts = str.split('/');
-      if(parts.length !== 3) return null;
-      const d = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10) - 1;
-      const y = parseInt(parts[2], 10);
-      const date = new Date(y, m, d);
-      return isNaN(date.getTime()) ? null : date;
-    }
+  function parseDate(str) {
+    if (!str) return null;
+    const parts = str.split('/');
+    if(parts.length !== 3) return null;
+    const d = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const y = parseInt(parts[2], 10);
+    const date = new Date(y, m, d);
+    return isNaN(date.getTime()) ? null : date;
+  }
 
-    function filterDataByDateRange(data, startDate, endDate, excludeToday = false) {
-      return data.filter(row => {
-        const rowDate = parseDate(row["DATA"]);
-        if (!rowDate) return false;
+  function filterDataByDateRange(data, startDate, endDate, excludeToday = false) {
+    return data.filter(row => {
+      const rowDate = parseDate(row["Data"]); // <-- attenzione al nome "Data"
+      if (!rowDate) return false;
 
-        if (excludeToday) {
-          const todayMidnight = new Date();
-          todayMidnight.setHours(0,0,0,0);
-          if(rowDate.getTime() === todayMidnight.getTime()) {
-            return false;
-          }
+      if (excludeToday) {
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0,0,0,0);
+        if(rowDate.getTime() === todayMidnight.getTime()) {
+          return false;
         }
-
-        return rowDate >= startDate && rowDate <= endDate;
-      });
-    }
-
-    function filterDataByMonthAndYear(data, monthNum, yearNum) {
-      console.log("Filtro anno-mese:", yearNum, monthNum);
-      if (!monthNum) return data;
-      const filtered = data.filter(row => {
-        const rowDate = parseDate(row["DATA"]);
-        if (!rowDate) return false;
-        const match = (rowDate.getMonth() + 1) === monthNum && rowDate.getFullYear() === yearNum;
-        if(!match) {
-          console.log("Escludo ", row["DATA"]);
-        }
-        return match;
-      });
-      console.log("Dati filtrati per mese-anno. Totale:", filtered.length);
-      return filtered;
-    }
-
-    function renderTable(data, filter) {
-      if (dataTableInstance) dataTableInstance.destroy();
-
-      if (!data || data.length === 0) {
-        $('#header-row').html('');
-        $('#myTable tbody').html('<tr><td colspan="10" style="text-align:center;font-style:italic;">Nessun dato disponibile</td></tr>');
-        console.log("Nessun dato disponibile da mostrare");
-        return;
       }
 
-      const allHeaders = Object.keys(data[0]);
-      const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
-      $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
-
-      let tbody = '';
-      data.forEach(row => {
-        let classe = '';
-        if (row["TIPOLOGIA"] === "Uscita") classe = 'uscita';
-        else if (row["TIPOLOGIA"] === "Entrata") classe = 'entrata';
-        tbody += `<tr class="${classe}">`;
-        showHeaders.forEach(h => {
-          tbody += `<td>${row[h] || ''}</td>`;
-        });
-        tbody += '</tr>';
-      });
-      $('#myTable tbody').html(tbody);
-
-      let pageLength = 10;
-      let paging = true;
-      let info = true;
-
-      if (filter === 'today') {
-        paging = false;
-        info = false;
-        pageLength = -1;
-      } else {
-        paging = true;
-        info = true;
-        pageLength = 15;
-      }
-
-      dataTableInstance = $('#myTable').DataTable({
-        order: [[showHeaders.indexOf("DATA"), 'desc']],
-        language: {
-          url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
-        },
-        paging: paging,
-        pageLength: pageLength,
-        info: info,
-        lengthChange: false,
-        searching: true
-      });
-      console.log("Dati renderizzati: ", data.length);
-    }
-
-    function showFilteredData(filter) {
-      currentFilter = filter;
-
-      Papa.parse(getCsvUrl(), {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-          rawData = results.data;
-
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          let filteredData;
-          switch(filter) {
-            case 'today':
-              filteredData = filterDataByDateRange(rawData, today, today);
-              $('#month-filter-container').hide();
-              break;
-            case 'week':
-              const weekAgo = new Date(today);
-              weekAgo.setDate(today.getDate() - 7);
-              filteredData = filterDataByDateRange(rawData, weekAgo, today, true);
-              $('#month-filter-container').hide();
-              break;
-            case 'month':
-              const monthAgo = new Date(today);
-              monthAgo.setMonth(today.getMonth() - 1);
-              filteredData = filterDataByDateRange(rawData, monthAgo, today, true);
-              $('#month-filter-container').hide();
-              break;
-            case 'year':
-              const yearAgo = new Date(today);
-              yearAgo.setFullYear(today.getFullYear() - 1);
-              filteredData = filterDataByDateRange(rawData, yearAgo, today, true);
-              $('#month-filter-container').show();
-              break;
-            default:
-              filteredData = rawData;
-              $('#month-filter-container').hide();
-          }
-
-          // Log dati prima del filtro mese
-          console.log("Dati dopo filtro anno-settimana-mese, prima filtro mese se applicabile:", filteredData.length);
-
-          if(filter === 'year') {
-            const selectedMonth = parseInt($('#month-select').val(), 10);
-            const currentYear = new Date().getFullYear();
-            filteredData = filterDataByMonthAndYear(filteredData, selectedMonth, currentYear);
-          }
-
-          renderTable(filteredData, filter);
-        }
-      });
-    }
-
-    $(document).ready(function() {
-      showFilteredData(currentFilter);
-
-      setInterval(() => {
-        showFilteredData(currentFilter);
-      }, 60000);
-
-      $('.filter-btn').on('click', function() {
-        $('.filter-btn').removeClass('active');
-        $(this).addClass('active');
-        $('#month-select').val('');
-        showFilteredData($(this).data('filter'));
-      });
-
-      $('#month-select').on('change', function() {
-        showFilteredData(currentFilter);
-      });
+      return rowDate >= startDate && rowDate <= endDate;
     });
-  </script>
+  }
+
+  function filterDataByMonthAndYear(data, monthNum, yearNum) {
+    console.log("Filtro anno-mese:", yearNum, monthNum);
+    if (!monthNum) return data;
+    const filtered = data.filter(row => {
+      const rowDate = parseDate(row["Data"]);
+      if (!rowDate) return false;
+      const match = (rowDate.getMonth() + 1) === monthNum && rowDate.getFullYear() === yearNum;
+      if(!match) {
+        console.log("Escludo ", row["Data"]);
+      }
+      return match;
+    });
+    console.log("Dati filtrati per mese-anno. Totale:", filtered.length);
+    return filtered;
+  }
+
+  function renderTable(data, filter) {
+    if (dataTableInstance) dataTableInstance.destroy();
+
+    if (!data || data.length === 0) {
+      $('#header-row').html('');
+      $('#myTable tbody').html('<tr><td colspan="10" style="text-align:center;font-style:italic;">Nessun dato disponibile</td></tr>');
+      console.log("Nessun dato disponibile da mostrare");
+      return;
+    }
+
+    const allHeaders = Object.keys(data[0]);
+    const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
+    $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
+
+    let tbody = '';
+    data.forEach(row => {
+      let classe = '';
+      if (row["TIPOLOGIA"] === "Uscita") classe = 'uscita';
+      else if (row["TIPOLOGIA"] === "Entrata") classe = 'entrata';
+      tbody += `<tr class="${classe}">`;
+      showHeaders.forEach(h => {
+        tbody += `<td>${row[h] || ''}</td>`;
+      });
+      tbody += '</tr>';
+    });
+    $('#myTable tbody').html(tbody);
+
+    let pageLength = 10;
+    let paging = true;
+    let info = true;
+
+    if (filter === 'today') {
+      paging = false;
+      info = false;
+      pageLength = -1;
+    } else {
+      paging = true;
+      info = true;
+      pageLength = 15;
+    }
+
+    dataTableInstance = $('#myTable').DataTable({
+      order: [[showHeaders.indexOf("Data"), 'desc']],
+      language: {
+        url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
+      },
+      paging: paging,
+      pageLength: pageLength,
+      info: info,
+      lengthChange: false,
+      searching: true
+    });
+    console.log("Dati renderizzati: ", data.length);
+  }
+
+  function showFilteredData(filter) {
+    currentFilter = filter;
+
+    Papa.parse(getCsvUrl(), {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        rawData = results.data;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let filteredData;
+        switch(filter) {
+          case 'today':
+            filteredData = filterDataByDateRange(rawData, today, today);
+            $('#month-filter-container').hide();
+            break;
+          case 'week':
+            const weekAgo = new Date(today);
+            weekAgo.setDate(today.getDate() - 7);
+            filteredData = filterDataByDateRange(rawData, weekAgo, today, true);
+            $('#month-filter-container').hide();
+            break;
+          case 'month':
+            const monthAgo = new Date(today);
+            monthAgo.setMonth(today.getMonth() - 1);
+            filteredData = filterDataByDateRange(rawData, monthAgo, today, true);
+            $('#month-filter-container').hide();
+            break;
+          case 'year':
+            const yearAgo = new Date(today);
+            yearAgo.setFullYear(today.getFullYear() - 1);
+            filteredData = filterDataByDateRange(rawData, yearAgo, today, true);
+            $('#month-filter-container').show();
+            break;
+          default:
+            filteredData = rawData;
+            $('#month-filter-container').hide();
+        }
+
+        if(filter === 'year') {
+          const selectedMonth = parseInt($('#month-select').val(), 10);
+          const currentYear = new Date().getFullYear();
+          filteredData = filterDataByMonthAndYear(filteredData, selectedMonth, currentYear);
+        }
+
+        renderTable(filteredData, filter);
+      }
+    });
+  }
+
+  $(document).ready(function() {
+    showFilteredData(currentFilter);
+
+    setInterval(() => {
+      showFilteredData(currentFilter);
+    }, 60000);
+
+    $('.filter-btn').on('click', function() {
+      $('.filter-btn').removeClass('active');
+      $(this).addClass('active');
+      $('#month-select').val('');
+      showFilteredData($(this).data('filter'));
+    });
+
+    $('#month-select').on('change', function() {
+      showFilteredData(currentFilter);
+    });
+  });
+</script>
 </body>
 </html>
