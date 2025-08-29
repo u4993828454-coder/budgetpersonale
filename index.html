@@ -1,192 +1,248 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <title>Budget Personale - Filtro Tutte le Transazioni</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.css" />
-  <style>
-    body { padding: 20px; font-family: Arial, sans-serif; }
-    .uscita { background-color: #f8d7da !important; }
-    .entrata { background-color: #d4edda !important; }
-    #filter-container { margin-bottom: 10px; text-align: right; }
-    #filter-container button {
-      margin-left: 5px;
-      padding: 5px 10px;
-      cursor: pointer;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      background-color: white;
-    }
-    #filter-container button.active {
-      background-color: #007bff;
-      color: white;
-      border-color: #0056b3;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Budget Personale - Elenco e Dettaglio Spese</title>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+  }
+  #sidebar {
+    width: 220px;
+    height: 100vh;
+    position: fixed;
+    background: #f8f9fa;
+    border-right: 1px solid #ddd;
+    padding-top: 20px;
+    box-sizing: border-box;
+  }
+  #sidebar ul {
+    list-style-type: none;
+    padding-left: 0;
+  }
+  #sidebar ul li {
+    padding: 12px 20px;
+    cursor: pointer;
+    font-weight: bold;
+    border-left: 5px solid transparent;
+    user-select: none;
+  }
+  #sidebar ul li.active {
+    background-color: #007bff;
+    color: white;
+    border-left-color: #0056b3;
+  }
+  #content {
+    margin-left: 220px;
+    padding: 20px;
+  }
+  h1 {
+    margin-top: 0;
+  }
+  /* Colors for second table headers */
+  .header-azzurro {
+    background-color: #cce5ff !important;
+  }
+  .header-giallo {
+    background-color: #fff3cd !important;
+  }
+</style>
 </head>
 <body>
-  <h1>Budget Personale - Google Sheets</h1>
-  <p>La tabella si aggiorna automaticamente ogni 60 secondi.</p>
-  <div id="filter-container">
+
+<div id="sidebar">
+  <ul>
+    <li class="active" data-view="elenco">Elenco Spese</li>
+    <li data-view="dettaglio">Dettaglio Spese</li>
+  </ul>
+</div>
+
+<div id="content">
+  <!-- Content will be loaded here -->
+  <div id="filters-container" style="margin-bottom:10px;">
     <button class="filter-btn active" data-filter="today">Oggi</button>
     <button class="filter-btn" data-filter="week">Ultima settimana</button>
     <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
-    <button class="filter-btn" data-filter="previous-month">Mese precedente più recente</button>
+    <button class="filter-btn" data-filter="previous-month">Mese prec.</button>
     <button class="filter-btn" data-filter="all">Tutte le transazioni</button>
   </div>
-  <table id="myTable" class="display" style="width:100%">
-    <thead><tr id="header-row"></tr></thead>
+  
+  <table id="table" class="display" style="width:100%">
+    <thead><tr id="table-header"></tr></thead>
     <tbody></tbody>
   </table>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.0/papaparse.min.js"></script>
-  <script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
-  <script>
-    $.fn.dataTable.moment('DD/MM/YYYY');
+</div>
 
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vgpb7xpZ6JXYJAum/DD7Y2jf2Bfeo0/pub?output=csv'; // Sostituisci con il tuo URL CSV
-    // ATTENZIONE: metti qui il Tuo Link completo della versione CSV espandendo l’ultimo link nel codice
-  
-    let rawData = [];
-    let currentFilter = 'today';
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
-    function parseDate(dateStr) {
-      if (!dateStr) return null;
-      const parts = dateStr.split('/');
-      if(parts.length !==3) return null;
-      const d = parseInt(parts[0],10), m = parseInt(parts[1],10)-1, y=parseInt(parts[2],10);
-      const date = new Date(y,m,d);
-      return isNaN(date.getTime()) ? null : date;
-    }
+<script>
+  const elencoCSV = "https://u4993828454-coder.github.io/budgetpersonale/elencospese.csv"; // cambia con link preciso
+  const dettaglioCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1-wfederalfake-csvlink/pub?gid=364020&single=true&output=csv"; // inserisci il link preciso CSV dettaglio
 
-    function filterByDateRange(data, startDate, endDate, excludeToday=false) {
-      return data.filter(item => {
-        const dt = parseDate(item["DATA"]);
-        if(!dt) return false;
-        if(excludeToday) {
-          const today = new Date();
-          today.setHours(0,0,0,0);
-          if(dt.getTime() === today.getTime()) return false;
-        }
-        return dt >= startDate && dt <= endDate;
-      });
-    }
+  let currentView = "elenco";
+  let currentFilter = "today";
+  let rawElenco = [], rawDettaglio = [];
+  let tableInstance = null;
 
-    function findRecentMonthWithData(data) {
-      const now = new Date();
-      let year = now.getFullYear(), month = now.getMonth() -1;
-      const counts = {};
-      for(const item of data) {
-        const dt = parseDate(item["DATA"]);
-        if(!dt) continue;
-        counts[dt.getFullYear()] = counts[dt.getFullYear()] || {};
-        counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()] ||0) +1;
+  const azzurroHeaders = ["TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
+    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"];
+  const gialloHeaders = ["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"];
+
+  $.fn.dataTable.moment("DD/MM/YYYY");
+
+  function parseDate(str){
+    if (!str) return null;
+    const p = str.split("/");
+    if(p.length!=3) return null;
+    let d = parseInt(p[0],10), m = parseInt(p[1],10)-1, y = parseInt(p[2],10);
+    let dt = new Date(y,m,d);
+    return isNaN(dt.getTime()) ? null : dt;
+  }
+
+  function filterByDate(data,start,end,excludeToday=false){
+    return data.filter(r=>{
+      let dt = parseDate(r["DATA"]);
+      if (!dt) return false;
+      if (excludeToday){
+        let today = new Date();
+        today.setHours(0,0,0,0);
+        if (dt.getTime() === today.getTime()) return false;
       }
-      for(let i=0; i<24; i++) {
-        if(counts[year] && counts[year][month]) return {year, month};
-        month--;
-        if(month<0) { month=11; year--; }
-      }
-      return null;
-    }
-
-    function renderTable(data, filter) {
-      if($.fn.DataTable.isDataTable('#myTable')) $('#myTable').DataTable().destroy();
-      $('#myTable tbody').empty();
-      $('#header-row').empty();
-
-      if(!data.length) {
-        $('#myTable tbody').html('<tr><td colspan="20" style="text-align:center;font-style:italic;">Nessun dato disponibile</td></tr>');
-        return;
-      }
-      const headers = Object.keys(data[0]).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
-      const headerHtml = headers.map(h=>`<th>${h}</th>`).join('');
-      $('#header-row').html(headerHtml);
-
-      let bodyHtml = '';
-      for(const row of data) {
-        const rowClass = row["TIPOLOGIA"] === 'Uscita' ? 'uscita' : (row["TIPOLOGIA"] === 'Entrata' ? 'entrata' : '');
-        bodyHtml += '<tr class="'+rowClass+'">';
-        for(const h of headers) {
-          bodyHtml += `<td>${row[h] || ''}</td>`;
-        }
-        bodyHtml += '</tr>';
-      }
-      $('#myTable tbody').html(bodyHtml);
-
-      $('#myTable').DataTable({
-        order:[[headers.indexOf("DATA"),'desc']],
-        language:{url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
-        paging:filter!=='today',
-        pageLength:filter==='today'? -1 : 15,
-        info:filter!=='today',
-        lengthChange:false,
-        searching:true
-      });
-    }
-
-    function applyFilter() {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      let filtered = [];
-      switch(currentFilter){
-        case 'today':
-          filtered = filterByDateRange(rawData, today, today);
-          break;
-        case 'week':
-          const weekAgo = new Date();
-          weekAgo.setDate(today.getDate()-7);
-          weekAgo.setHours(0,0,0,0);
-          filtered = filterByDateRange(rawData, weekAgo,today,true);
-          break;
-        case 'current-month':
-          const startMonth = new Date(today.getFullYear(), today.getMonth(),1);
-          const endMonth = new Date(today.getFullYear(), today.getMonth()+1,0);
-          filtered = filterByDateRange(rawData, startMonth, endMonth);
-          break;
-        case 'previous-month':
-          const recent = findRecentMonthWithData(rawData);
-          if(!recent) filtered = [];
-          else {
-            const startDate = new Date(recent.year, recent.month,1);
-            const endDate = new Date(recent.year, recent.month+1,0);
-            filtered = filterByDateRange(rawData, startDate, endDate);
-          }
-          break;
-        case 'all':
-          filtered = rawData;
-          break;
-        default:
-          filtered = rawData;
-      }
-      renderTable(filtered,currentFilter);
-    }
-
-    function showFilter(filter){
-      if(filter!==currentFilter){
-        currentFilter = filter;
-      }
-      applyFilter();
-    }
-
-    $(document).ready(() => {
-      Papa.parse(csvUrl, {
-        download:true,
-        header:true,
-        skipEmptyLines:true,
-        complete(results) {
-          rawData = results.data;
-          showFilter(currentFilter);
-          setInterval(() => showFilter(currentFilter),60000);
-        }
-      });
-      $('.filter-btn').on('click',function(){
-        $('.filter-btn').removeClass('active');
-        $(this).addClass('active');
-        showFilter($(this).data('filter'));
-      });
+      return (dt >= start && dt <= end);
     });
-  </script>
+  }
+
+  function findRecentMonthData(data){
+    let now = new Date();
+    let y=now.getFullYear(), m=now.getMonth()-1;
+    let countMap = {};
+    data.forEach(r=>{
+      let dt=parseDate(r["DATA"]);
+      if(!dt) return;
+      if(!(dt.getFullYear() in countMap)) countMap[dt.getFullYear()] = {};
+      countMap[dt.getFullYear()][dt.getMonth()] = (countMap[dt.getFullYear()][dt.getMonth()]||0) +1;
+    });
+    for(let i=0;i<24;i++){
+      if (countMap[y] && countMap[y][m]) return {year:y, month:m};
+      m--;
+      if(m<0){ m=11; y--;}
+    }
+    return null;
+  }
+
+  function sortByDateDesc(data){
+    return data.sort((a,b)=>{
+      let da=parseDate(a["DATA"]);
+      let db=parseDate(b["DATA"]);
+      if(!da) return 1;
+      if(!db) return -1;
+      return db - da;
+    });
+  }
+
+  function buildTable(data){
+    if(tableInstance) tableInstance.destroy();
+    if(!data.length){
+      $("#table-header").html("");
+      $("#table tbody").html('<tr><td colspan="20" style="text-align:center; font-style:italic;">Nessun dato disponibile</td></tr>');
+      return;
+    }
+    let headers = Object.keys(data[0]).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
+    let headerHTML = "";
+    headers.forEach(h=>{
+      let c=null;
+      if (azzurroHeaders.includes(h)) c = 'background-color:#cce5ff;';
+      else if (gialloHeaders.includes(h)) c = 'background-color:#fff3cd;';
+      headerHTML += `<th style="${c||""}">${h}</th>`;
+    });
+    $("#table-header").html(headerHTML);
+
+    let rowsHTML="";
+    data.forEach(r=>{
+      let cls="";
+      if(r["TIPOLOGIA"] === "Uscita") cls="uscita";
+      else if(r["TIPOLOGIA"]==="Entrata") cls="entrata";
+      rowsHTML += `<tr class="${cls}">`;
+      headers.forEach(h=>{ rowsHTML+= `<td>${r[h] || ""}</td>`; });
+      rowsHTML += `</tr>`;
+    });
+    $("#table tbody").html(rowsHTML);
+
+    tableInstance = $("#table").DataTable({
+      order:[[headers.indexOf("DATA"),'desc']],
+      language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json" },
+      pageLength: 15,
+      lengthChange: false,
+      searching: true,
+      paging: true,
+      info: true
+    });
+  }
+
+  function applyFilter(){
+    let filtered = [];
+    let today = new Date();
+    today.setHours(0,0,0,0);
+
+    switch(currentFilter){
+      case "today":
+        filtered = filterByDate(rawElenco,new Date(today),new Date(today));
+        break;
+      case "week":
+        let weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate()-7);
+        filtered = filterByDate(rawElenco, weekAgo, today, true);
+        break;
+      case "current-month":
+        let startMonth = new Date(today.getFullYear(),today.getMonth(),1);
+        let endMonth = new Date(today.getFullYear(),today.getMonth()+1,0);
+        filtered = filterByDate(rawElenco,startMonth,endMonth);
+        break;
+      case "previous-month":
+        let recent = findRecentMonthData(rawElenco);
+        if(!recent) filtered = [];
+        else {
+          let st = new Date(recent.year,recent.month,1);
+          let en = new Date(recent.year,recent.month+1,0);
+          filtered = filterByDate(rawElenco,st,en);
+        }
+        break;
+      case "all":
+        filtered = sortByDateDesc(rawElenco);
+        break;
+    }
+    buildTable(filtered);
+  }
+
+  function changeView(view){
+    currentFilter = view;
+    applyFilter();
+  }
+
+  $(document).ready(function(){
+    Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1-wrealCSVlink/pub?gid=143189380&single=true&output=csv",{
+      download:true,
+      header:true,
+      skipEmptyLines:true,
+      complete:function(results){
+        rawElenco = results.data;
+        applyFilter();
+        setInterval(applyFilter, 60000);
+      }
+    });
+
+    $(".filter-btn").click(function(){
+      $(".filter-btn").removeClass("active");
+      $(this).addClass("active");
+      changeView($(this).data("filter"));
+    });
+  });
+
+</script>
 </body>
 </html>
