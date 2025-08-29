@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Budget Personale - Filtri e paginazione</title>
+  <title>Budget Personale - Filtri avanzati e paginazione</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
   <style>
     body { padding: 20px; font-family: Arial, sans-serif; }
@@ -17,6 +17,10 @@
       padding: 5px 10px;
       font-size: 14px;
       cursor: pointer;
+    }
+    #month-filter-container {
+      margin-top: 10px;
+      text-align: right;
     }
   </style>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -33,6 +37,26 @@
     <button class="filter-btn" data-filter="today">Oggi</button>
     <button class="filter-btn" data-filter="week">Ultima settimana</button>
     <button class="filter-btn" data-filter="month">Ultimo mese</button>
+    <button class="filter-btn" data-filter="year">Ultimo anno</button>
+  </div>
+
+  <div id="month-filter-container" style="display:none;">
+    <label for="month-select">Filtra per mese: </label>
+    <select id="month-select">
+      <option value="">Tutti</option>
+      <option value="1">Gennaio</option>
+      <option value="2">Febbraio</option>
+      <option value="3">Marzo</option>
+      <option value="4">Aprile</option>
+      <option value="5">Maggio</option>
+      <option value="6">Giugno</option>
+      <option value="7">Luglio</option>
+      <option value="8">Agosto</option>
+      <option value="9">Settembre</option>
+      <option value="10">Ottobre</option>
+      <option value="11">Novembre</option>
+      <option value="12">Dicembre</option>
+    </select>
   </div>
 
   <table id="myTable" class="display" style="width:100%">
@@ -44,11 +68,11 @@
     const csvBaseUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv';
     let dataTableInstance;
     let currentFilter = 'today';
+    let rawData = []; // conserva tutti i dati per ri-filtraggi
 
     $.fn.dataTable.moment('DD/MM/YYYY');
 
     function getCsvUrl() {
-      // Aggiunge parametro timestamp per evitare cache browser
       return csvBaseUrl + '&nocache=' + new Date().getTime();
     }
 
@@ -65,6 +89,77 @@
       });
     }
 
+    function filterDataExcludeToday(data, startDate, endDate) {
+      // Usa per escludere la data di oggi, quindi da yesterday fino a endDate
+      return data.filter(row => {
+        if (!row["DATA"]) return false;
+        const rowDate = parseDate(row["DATA"]);
+        return rowDate >= startDate && rowDate <= endDate && rowDate < new Date().setHours(0,0,0,0);
+      });
+    }
+
+    function filterDataByMonth(data, monthNum) {
+      if (!monthNum) return data;
+      return data.filter(row => {
+        if (!row["DATA"]) return false;
+        const rowDate = parseDate(row["DATA"]);
+        return (rowDate.getMonth() + 1) === monthNum;
+      });
+    }
+
+    function renderTable(data, filter) {
+      if (dataTableInstance) dataTableInstance.destroy();
+
+      if (!data || data.length === 0) {
+        $('#header-row').html('');
+        $('#myTable tbody').html('<tr><td colspan="10">Nessun dato disponibile</td></tr>');
+        return;
+      }
+
+      const allHeaders = Object.keys(data[0]);
+      const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
+      $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
+
+      let tbody = '';
+      data.forEach(row => {
+        let classe = '';
+        if (row["TIPOLOGIA"] === "Uscita") classe = 'uscita';
+        else if (row["TIPOLOGIA"] === "Entrata") classe = 'entrata';
+        tbody += `<tr class="${classe}">`;
+        showHeaders.forEach(h => {
+          tbody += `<td>${row[h] || ''}</td>`;
+        });
+        tbody += '</tr>';
+      });
+      $('#myTable tbody').html(tbody);
+
+      let pageLength = 10;
+      let paging = true;
+      let info = true;
+
+      if (filter === 'today') {
+        paging = false;
+        info = false;
+        pageLength = -1;
+      } else {
+        paging = true;
+        info = true;
+        pageLength = 15;
+      }
+
+      dataTableInstance = $('#myTable').DataTable({
+        order: [[showHeaders.indexOf("DATA"), 'desc']],
+        language: {
+          url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
+        },
+        paging: paging,
+        pageLength: pageLength,
+        info: info,
+        lengthChange: false,
+        searching: true
+      });
+    }
+
     function showFilteredData(filter) {
       currentFilter = filter;
 
@@ -73,7 +168,7 @@
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          let data = results.data;
+          rawData = results.data;
 
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -81,82 +176,64 @@
           let filteredData;
           switch(filter) {
             case 'today':
-              filteredData = filterDataByDateRange(data, today, today);
+              filteredData = filterDataByDateRange(rawData, today, today);
+              $('#month-filter-container').hide();
               break;
             case 'week':
               const weekAgo = new Date(today);
               weekAgo.setDate(today.getDate() - 7);
-              filteredData = filterDataByDateRange(data, weekAgo, today);
+              // Escludo oggi quindi prendo da ieri indietro
+              filteredData = filterDataExcludeToday(rawData, weekAgo, today);
+              $('#month-filter-container').hide();
               break;
             case 'month':
               const monthAgo = new Date(today);
               monthAgo.setMonth(today.getMonth() - 1);
-              filteredData = filterDataByDateRange(data, monthAgo, today);
+              filteredData = filterDataExcludeToday(rawData, monthAgo, today);
+              $('#month-filter-container').hide();
+              break;
+            case 'year':
+              const yearAgo = new Date(today);
+              yearAgo.setFullYear(today.getFullYear() - 1);
+              filteredData = filterDataExcludeToday(rawData, yearAgo, today);
+              $('#month-filter-container').show();
               break;
             default:
-              filteredData = data;
+              filteredData = rawData;
+              $('#month-filter-container').hide();
           }
 
-          if (dataTableInstance) dataTableInstance.destroy();
-
-          const allHeaders = Object.keys(data[0]);
-          const showHeaders = allHeaders.filter(h => !["MESE", "ANNO", "MESE_1"].includes(h));
-          $('#header-row').html(showHeaders.map(h => `<th>${h}</th>`).join(''));
-
-          let tbody = '';
-          filteredData.forEach(row => {
-            let classe = '';
-            if (row["TIPOLOGIA"] === "Uscita") classe = 'uscita';
-            else if (row["TIPOLOGIA"] === "Entrata") classe = 'entrata';
-            tbody += `<tr class="${classe}">`;
-            showHeaders.forEach(h => {
-              tbody += `<td>${row[h] || ''}</td>`;
-            });
-            tbody += '</tr>';
-          });
-          $('#myTable tbody').html(tbody);
-
-          let pageLength = 10;
-          let paging = true;
-          let info = true;
-
-          if (filter === 'today') {
-            paging = false;
-            info = false;
-            pageLength = -1;
-          } else {
-            paging = true;
-            info = true;
-            pageLength = 15;
-          }
-
-          dataTableInstance = $('#myTable').DataTable({
-            order: [[showHeaders.indexOf("DATA"), 'desc']],
-            language: {
-              url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
-            },
-            paging: paging,
-            pageLength: pageLength,
-            info: info,
-            lengthChange: false,
-            searching: true
-          });
+          renderTable(filteredData, filter);
         }
       });
     }
 
-    // mostra dati oggi all'apertura
+    // Mostra dati oggi all'apertura
     showFilteredData(currentFilter);
 
-    // aggiorna dati ogni 60 secondi tenendo conto del filtro attuale
+    // Aggiorna dati ogni 60 secondi tenendo conto del filtro attuale e mese selezionato
     setInterval(() => {
+      let filteredData = rawData;
+      if (currentFilter === 'year') {
+        const monthNum = parseInt($('#month-select').val(), 10);
+        filteredData = filterDataByMonth(rawData, monthNum);
+      }
       showFilteredData(currentFilter);
     }, 60000);
 
-    // gestione click pulsanti filtro
+    // Gestione click pulsanti filtro
     $('.filter-btn').on('click', function() {
       const filter = $(this).data('filter');
+      // Reset selezione mese quando filtro cambia
+      $('#month-select').val('');
       showFilteredData(filter);
+    });
+
+    // Gestione filtro mese per "ultimo anno"
+    $('#month-select').on('change', function() {
+      const monthNum = parseInt($(this).val(), 10);
+      let filteredData = filterDataByMonth(rawData, monthNum);
+      renderTable(filteredData, currentFilter);
     });
   </script>
 </body>
