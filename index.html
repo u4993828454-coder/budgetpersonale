@@ -31,14 +31,12 @@
         complete: function(results) {
           const data = results.data;
           if (data.length === 0) {
-            alert('Nessun dato trovato nel CSV.');
+            $('#myTable tbody').html('');
             return;
           }
-          // Costruiamo l'intestazione dinamicamente
+          // Costruisci intestazione dinamicamente dalle chiavi del primo oggetto
           const headers = Object.keys(data[0]);
           $('#header-row').html(headers.map(h => `<th>${h}</th>`).join(''));
-
-          // Costruiamo il corpo della tabella
           let tbody = '';
           data.forEach(row => {
             tbody += '<tr>';
@@ -48,26 +46,18 @@
             tbody += '</tr>';
           });
           $('#myTable tbody').html(tbody);
-
-          // Distruggi la tabella precedentemente inizializzata se esiste
-          if (dataTableInstance) {
-            dataTableInstance.destroy();
-          }
-
-          // Inizializza DataTable
+          // Distruggi istanza precedente DataTable
+          if (dataTableInstance) dataTableInstance.destroy();
+          // Reinizializza DataTable
           dataTableInstance = $('#myTable').DataTable({
             language: {
               url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"
             }
           });
-        },
-        error: function(err) {
-          console.error('Errore nel caricamento CSV:', err);
         }
       });
     }
 
-    // Primo caricamento e setup refresh ogni 60 secondi
     reloadTable();
     setInterval(reloadTable, 60000);
   </script>
