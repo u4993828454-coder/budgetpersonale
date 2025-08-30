@@ -45,11 +45,11 @@
   <div id="elenco-view">
     <h1>Elenco Spese</h1>
     <div id="filter-container">
-      <button class="filter-btn active" data-filter="today">Oggi</button>
+      <button class="filter-btn active" data-filter="all">Tutte</button>
+      <button class="filter-btn" data-filter="today">Oggi</button>
       <button class="filter-btn" data-filter="week">Ultima settimana</button>
       <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
       <button class="filter-btn" data-filter="previous-month">Mese precedente</button>
-      <button class="filter-btn" data-filter="all">Tutte</button>
     </div>
     <table id="elenco-table" class="display" style="width:100%">
       <thead><tr id="elenco-header"></tr></thead>
@@ -80,23 +80,9 @@
   let elencoData = [];
   let dettaglioData = [];
   let currentView = "elenco";
-  let currentFilter = "today";
+  let currentFilter = "all";
   let elencoTable;
   let dettaglioTable;
-
-  // Colonne per Dettaglio Spese (come nel foglio)
-  const colonneDettaglio = [
-    "TRASPORTI", "AFFITTO", "UTENZE", "SPESA E ALIMENTARI", "CURA PERSONALE",
-    "SPESE MEDICHE", "VESTITI ESSENZIALI", "COSE DELLA CASA", "SPESE SCOLASTICHE",
-    "RISTORANTE", "VACANZA", "REGALI", "ALTRO EXTRA", "USCITE", "SIGARETTE"
-  ];
-  const azzurroCols = [
-    "TRASPORTI", "AFFITTO", "UTENZE", "SPESA E ALIMENTARI", "CURA PERSONALE",
-    "SPESE MEDICHE", "VESTITI ESSENZIALI", "COSE DELLA CASA", "SPESE SCOLASTICHE"
-  ];
-  const gialloCols = [
-    "RISTORANTE", "VACANZA", "REGALI", "ALTRO EXTRA", "USCITE", "SIGARETTE"
-  ];
 
   function parseDate(str){
     if(!str) return null;
@@ -138,23 +124,23 @@
       $('#elenco-table').DataTable().destroy();
       $('#elenco-table tbody').empty();
     }
-    if (!data.length) {
+    if (!data.length || !data || Object.keys(data).length === 0) {
       $('#elenco-header').html("");
       $('#elenco-table tbody').html("<tr><td colspan='20' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    const headers = Object.keys(data).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
+    // Usa tutte le intestazioni presenti, compresi mesi/anno
+    const headers = Object.keys(data).filter(h => h && h.trim() !== "");
     $('#elenco-header').html(headers.map(h=>`<th>${h}</th>`).join(""));
     let rows = '';
-    data.forEach(row=>{
-      let cls = row["TIPOLOGIA"] === "Uscita" ? 'uscita' : (row["TIPOLOGIA"] === "Entrata" ? 'entrata' : '');
-      rows += `<tr class="${cls}">`;
+    data.forEach(row => {
+      rows += "<tr>";
       headers.forEach(h => rows += `<td>${row[h] || ""}</td>`);
       rows += "</tr>";
     });
     $('#elenco-table tbody').html(rows);
-    elencoTable = $("#elenco-table").DataTable({
-      order: headers.includes("DATA") ? [[headers.indexOf("DATA"),"desc"]] : [],
+    $("#elenco-table").DataTable({
+      order: headers.includes("DATA") ? [[headers.indexOf("DATA"), "desc"]] : [],
       language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
       paging:true,
       pageLength: 15,
@@ -169,26 +155,23 @@
       $('#dettaglio-table').DataTable().destroy();
       $('#dettaglio-table tbody').empty();
     }
-    if(!data.length){
+    if(!data.length || !data || Object.keys(data).length === 0){
       $('#dettaglio-header').html("");
       $('#dettaglio-table tbody').html("<tr><td colspan='30' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    $('#dettaglio-header').html(colonneDettaglio.map(h => {
-      let cls = "";
-      if (azzurroCols.includes(h)) cls = "header-azzurro";
-      if (gialloCols.includes(h)) cls = "header-giallo";
-      return `<th class="${cls}">${h}</th>`;
-    }).join(""));
+    // Prende intestazioni dal CSV Dettaglio (usa struttura reale!)
+    const headers = Object.keys(data).filter(h => h && h.trim() !== "");
+    $('#dettaglio-header').html(headers.map(h => `<th>${h}</th>`).join(""));
     let rows = "";
     data.forEach(row => {
       rows += "<tr>";
-      colonneDettaglio.forEach(h => rows += `<td>${row[h] ? row[h] : ""}</td>`);
+      headers.forEach(h => rows += `<td>${row[h] ? row[h] : ""}</td>`);
       rows += "</tr>";
     });
     $('#dettaglio-table tbody').html(rows);
-    dettaglioTable = $('#dettaglio-table').DataTable({
-      order:[[0,"asc"]],
+    $("#dettaglio-table").DataTable({
+      order: headers.includes("DATA") ? [[headers.indexOf("DATA"), "asc"]] : [],
       language:{url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
       paging:true,
       pageLength:15,
@@ -224,10 +207,7 @@
         break;
       case "all":
       default:
-        filtered = elencoData.slice().sort((a,b)=>{
-          let da = parseDate(a["DATA"]); let db = parseDate(b["DATA"]);
-          if(!da) return 1; if(!db) return -1; return db-da;
-        });
+        filtered = elencoData.slice();
     }
     renderElenco(filtered);
   }
