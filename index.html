@@ -72,7 +72,7 @@
 <script>
   $.fn.dataTable.moment('DD/MM/YYYY');
 
-  // <<METTI I TUOI LINK CSV QUI>>
+  // INSERISCI I TUOI LINK CSV QUI
   const elencoUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv";
   const dettaglioUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=364007020&single=true&output=csv";
 
@@ -84,14 +84,13 @@
   let dettaglioTable;
   let elencoInterval = null;
 
-  // SOLO le colonne reali del foglio!
+  // Header ELENCO/DETTAGLIO come da foglio
   const elencoHeaders = [
     "DATA", "MESE", "ANNO", "EURO", "TIPOLOGIA", "CONTO", "DESCRIZIONE", "CATEGORIA"
   ];
 
-  // SOLO le colonne reali del dettaglio (aggiorna se necessario).
   const dettaglioHeaders = [
-    "ID", "DATA", "MESE", "ANNO", "EURO", "TIPOLOGIA", "CONTO", "DESCRIZIONE", "CATEGORIA"
+    "DATA", "MESE", "ANNO", "EURO", "TIPOLOGIA", "CONTO", "DESCRIZIONE", "CATEGORIA"
   ];
 
   function parseDate(str){
@@ -121,7 +120,7 @@
     });
     $('#elenco-table tbody').html(rows);
     $("#elenco-table").DataTable({
-      order: [[0,"desc"]],
+      order: [[0,"desc"]], // Pirulino su DATA, ordina in automatico dal più recente
       language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
       paging:true,
       pageLength: 15,
@@ -138,10 +137,10 @@
     }
     if(!data.length || !data[0]){
       $('#dettaglio-header').html("");
-      $('#dettaglio-table tbody').html("<tr><td colspan='30' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
+      $('#dettaglio-table tbody').html("<tr><td colspan='8' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    $('#dettaglio-header').html(dettaglioHeaders.map(h=>`<th>${h}</th>`).join(""));
+    $('#dettaglio-header').html(dettaglioHeaders.map(h => `<th>${h}</th>`).join(""));
     let rows = "";
     data.forEach(row => {
       rows += "<tr>";
@@ -150,7 +149,7 @@
     });
     $('#dettaglio-table tbody').html(rows);
     $("#dettaglio-table").DataTable({
-      order: [[1,"desc"]], // Per DATA
+      order: [[0,"desc"]], // Ordina DATA decrescente
       language:{url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
       paging:true,
       pageLength:15,
@@ -197,7 +196,7 @@
       default:
         filtered = elencoData.slice();
     }
-    // ORDINA SEMPRE in modo decrescente (più recente in alto)
+    // Sempre ordina per data DESC
     filtered.sort((a, b) => {
       let da = parseDate(a["DATA"]);
       let db = parseDate(b["DATA"]);
