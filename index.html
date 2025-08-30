@@ -73,14 +73,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <script>
-  // ORDINE: moment.js deve essere DEFINITO qui!
   $.fn.dataTable.moment('DD/MM/YYYY');
 
   // URL CSV
   const elencoUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv";
   const dettaglioUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=364007020&single=true&output=csv";
 
-  // Variaibli globali (dichiarate UNA volta sola)
   let elencoData = [];
   let dettaglioData = [];
   let currentView = "elenco";
@@ -88,15 +86,25 @@
   let elencoTable;
   let dettaglioTable;
 
-  // Colonna intestazioni colorate (puoi modificare i nomi secondo la tua tabella Dettaglio)
-  const azzurroCols = ["TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE","SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"];
-  const gialloCols = ["RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"];
+  // Colonne in ordine come il foglio dett. spese
+  const colonneDettaglio = [
+    "TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
+    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE",
+    "RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"
+  ];
+  const azzurroCols = [
+    "TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
+    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"
+  ];
+  const gialloCols = [
+    "RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"
+  ];
 
   function parseDate(str){
     if(!str) return null;
     let p = str.split("/");
     if(p.length!=3) return null;
-    return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p[0],10));
+    return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p,10));
   }
 
   function filterByDateRange(data, start, end, excludeToday) {
@@ -134,7 +142,7 @@
       $('#elenco-table tbody').html("<tr><td colspan='20' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    const headers = Object.keys(data[0]).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
+    const headers = Object.keys(data).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
     $('#elenco-header').html(headers.map(h=>`<th>${h}</th>`).join(""));
     let rows = '';
     data.forEach(row=>{
@@ -162,18 +170,17 @@
       $('#dettaglio-table tbody').html("<tr><td colspan='30' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    const headers = Object.keys(data[0]);
-    $('#dettaglio-header').html(headers.map(h=>{
-      let colName = h.toUpperCase().trim();
+    // Header FISSO e colorato come foglio Google
+    $('#dettaglio-header').html(colonneDettaglio.map(h => {
       let cls = "";
-      if(azzurroCols.includes(colName)) cls="header-azzurro";
-      if(gialloCols.includes(colName)) cls="header-giallo";
+      if (azzurroCols.includes(h)) cls = "header-azzurro";
+      if (gialloCols.includes(h)) cls = "header-giallo";
       return `<th class="${cls}">${h}</th>`;
     }).join(""));
     let rows = "";
     data.forEach(row => {
       rows += "<tr>";
-      headers.forEach(h => rows += "<td>"+ (row[h]||"") +"</td>");
+      colonneDettaglio.forEach(h => rows += `<td>${row[h] ? row[h] : ""}</td>`);
       rows += "</tr>";
     });
     $('#dettaglio-table tbody').html(rows);
