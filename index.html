@@ -84,18 +84,18 @@
   let elencoTable;
   let dettaglioTable;
 
-  // Colonne ordinate e colorate come il foglio
+  // Colonne per Dettaglio Spese (come nel foglio)
   const colonneDettaglio = [
-    "TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
-    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE",
-    "RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"
+    "TRASPORTI", "AFFITTO", "UTENZE", "SPESA E ALIMENTARI", "CURA PERSONALE",
+    "SPESE MEDICHE", "VESTITI ESSENZIALI", "COSE DELLA CASA", "SPESE SCOLASTICHE",
+    "RISTORANTE", "VACANZA", "REGALI", "ALTRO EXTRA", "USCITE", "SIGARETTE"
   ];
   const azzurroCols = [
-    "TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
-    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"
+    "TRASPORTI", "AFFITTO", "UTENZE", "SPESA E ALIMENTARI", "CURA PERSONALE",
+    "SPESE MEDICHE", "VESTITI ESSENZIALI", "COSE DELLA CASA", "SPESE SCOLASTICHE"
   ];
   const gialloCols = [
-    "RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"
+    "RISTORANTE", "VACANZA", "REGALI", "ALTRO EXTRA", "USCITE", "SIGARETTE"
   ];
 
   function parseDate(str){
@@ -133,12 +133,12 @@
     return null;
   }
 
-  function renderElenco(data){
-    if ( $.fn.dataTable.isDataTable('#elenco-table') ) {
+  function renderElenco(data) {
+    if ($.fn.dataTable.isDataTable('#elenco-table')) {
       $('#elenco-table').DataTable().destroy();
-      $('#elenco-table').find('tbody').empty();
+      $('#elenco-table tbody').empty();
     }
-    if(!data.length){
+    if (!data.length) {
       $('#elenco-header').html("");
       $('#elenco-table tbody').html("<tr><td colspan='20' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
@@ -149,12 +149,12 @@
     data.forEach(row=>{
       let cls = row["TIPOLOGIA"] === "Uscita" ? 'uscita' : (row["TIPOLOGIA"] === "Entrata" ? 'entrata' : '');
       rows += `<tr class="${cls}">`;
-      headers.forEach(h => rows += "<td>"+(row[h]||"")+"</td>");
+      headers.forEach(h => rows += `<td>${row[h] || ""}</td>`);
       rows += "</tr>";
     });
     $('#elenco-table tbody').html(rows);
     elencoTable = $("#elenco-table").DataTable({
-      order:[[headers.indexOf("DATA"),"desc"]],
+      order: headers.includes("DATA") ? [[headers.indexOf("DATA"),"desc"]] : [],
       language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
       paging:true,
       pageLength: 15,
@@ -167,7 +167,7 @@
   function renderDettaglio(data){
     if($.fn.dataTable.isDataTable('#dettaglio-table')){
       $('#dettaglio-table').DataTable().destroy();
-      $('#dettaglio-table').find('tbody').empty();
+      $('#dettaglio-table tbody').empty();
     }
     if(!data.length){
       $('#dettaglio-header').html("");
