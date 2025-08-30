@@ -20,8 +20,6 @@
     h1 { margin-top: 0; }
     .uscita { background-color: #f8d7da !important; }
     .entrata { background-color: #d4edda !important; }
-    .header-azzurro { background-color: #cce5ff !important; }
-    .header-giallo { background-color: #fff3cd !important; }
     #filter-container { margin-bottom: 10px; }
     #filter-container button {
       margin-right: 5px; padding: 6px 12px; font-size: 14px; cursor: pointer; user-select: none;
@@ -84,6 +82,11 @@
   let elencoTable;
   let dettaglioTable;
 
+  // SOLO queste intestazioni!
+  const elencoHeaders = [
+    "DATA", "MESE", "ANNO", "EURO", "TIPOLOGIA", "CONTO", "DESCRIZIONE", "CATEGORIA"
+  ];
+
   function parseDate(str){
     if(!str) return null;
     let p = str.split("/");
@@ -119,28 +122,28 @@
     return null;
   }
 
+  // ELENCO SPESE - Solo colonne desiderate
   function renderElenco(data) {
     if ($.fn.dataTable.isDataTable('#elenco-table')) {
       $('#elenco-table').DataTable().destroy();
       $('#elenco-table tbody').empty();
     }
-    if (!data.length || !data || Object.keys(data).length === 0) {
+    if (!data.length || !data) {
       $('#elenco-header').html("");
-      $('#elenco-table tbody').html("<tr><td colspan='20' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
+      $('#elenco-table tbody').html("<tr><td colspan='8' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    // Usa tutte le intestazioni presenti, compresi mesi/anno
-    const headers = Object.keys(data).filter(h => h && h.trim() !== "");
-    $('#elenco-header').html(headers.map(h=>`<th>${h}</th>`).join(""));
+    $('#elenco-header').html(elencoHeaders.map(h=>`<th>${h}</th>`).join(""));
     let rows = '';
     data.forEach(row => {
-      rows += "<tr>";
-      headers.forEach(h => rows += `<td>${row[h] || ""}</td>`);
+      let cls = row["TIPOLOGIA"] === "Uscita" ? 'uscita' : (row["TIPOLOGIA"] === "Entrata" ? 'entrata' : '');
+      rows += `<tr class="${cls}">`;
+      elencoHeaders.forEach(h => rows += `<td>${row[h] || ""}</td>`);
       rows += "</tr>";
     });
     $('#elenco-table tbody').html(rows);
     $("#elenco-table").DataTable({
-      order: headers.includes("DATA") ? [[headers.indexOf("DATA"), "desc"]] : [],
+      order: [[0,"desc"]],
       language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
       paging:true,
       pageLength: 15,
@@ -150,17 +153,17 @@
     });
   }
 
+  // DETTAGLIO SPESE per compatibilità (puoi aggiungere quelle che vuoi)
   function renderDettaglio(data){
     if($.fn.dataTable.isDataTable('#dettaglio-table')){
       $('#dettaglio-table').DataTable().destroy();
       $('#dettaglio-table tbody').empty();
     }
-    if(!data.length || !data || Object.keys(data).length === 0){
+    if(!data.length || !data){
       $('#dettaglio-header').html("");
       $('#dettaglio-table tbody').html("<tr><td colspan='30' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
       return;
     }
-    // Prende intestazioni dal CSV Dettaglio (usa struttura reale!)
     const headers = Object.keys(data).filter(h => h && h.trim() !== "");
     $('#dettaglio-header').html(headers.map(h => `<th>${h}</th>`).join(""));
     let rows = "";
