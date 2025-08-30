@@ -1,276 +1,30 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8" />
-  <title>Budget Personale - Elenco e Dettaglio Spese</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.css" />
-  <style>
-    body { margin: 0; font-family: Arial, sans-serif; display: flex; height: 100vh; }
-    #sidebar {
-      width: 220px; background: #f8f9fa; border-right: 1px solid #ddd; padding-top: 30px; box-sizing: border-box;
-    }
-    #sidebar ul { list-style: none; padding: 0; margin: 0; }
-    #sidebar li {
-      padding: 15px 20px; cursor: pointer; font-weight: bold; border-left: 5px solid transparent; user-select: none;
-    }
-    #sidebar li.active {
-      background-color: #007bff; color: white; border-left-color: #0056b3;
-    }
-    #content { flex: 1; overflow: auto; padding: 20px; }
-    h1 { margin-top: 0; }
-    .uscita { background-color: #f8d7da !important; }
-    .entrata { background-color: #d4edda !important; }
-    .header-azzurro { background-color: #cce5ff !important; }
-    .header-giallo { background-color: #fff3cd !important; }
-    #filter-container { margin-bottom: 10px; }
-    #filter-container button {
-      margin-right: 5px; padding: 6px 12px; font-size: 14px; cursor: pointer; user-select: none;
-      border: 1px solid #ccc; background: white;
-    }
-    #filter-container button.active {
-      background: #007bff; color: #fff; border: none;
-    }
-  </style>
-</head>
-<body>
-
-<div id="sidebar">
-  <ul>
-    <li data-view="elenco" class="active">Elenco Spese</li>
-    <li data-view="dettaglio">Dettaglio Spese</li>
-  </ul>
-</div>
-
-<div id="content">
-  <div id="elenco-view">
-    <h1>Elenco Spese</h1>
-    <div id="filter-container">
-      <button class="filter-btn active" data-filter="today">Oggi</button>
-      <button class="filter-btn" data-filter="week">Ultima settimana</button>
-      <button class="filter-btn" data-filter="current-month">Ultimo mese</button>
-      <button class="filter-btn" data-filter="previous-month">Mese precedente</button>
-      <button class="filter-btn" data-filter="all">Tutte</button>
-    </div>
-    <table id="elenco-table" class="display" style="width:100%">
-      <thead><tr id="elenco-header"></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <div id="dettaglio-view" style="display:none">
-    <h1>Dettaglio Spese</h1>
-    <table id="dettaglio-table" class="display" style="width:100%">
-      <thead><tr id="dettaglio-header"></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ORDINE CRITICO DEGLI SCRIPT -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/plug-ins/1.13.4/sorting/datetime-moment.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-<script>
-  $.fn.dataTable.moment('DD/MM/YYYY');
-
-  // URL CSV
-  const elencoUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=1431873938&single=true&output=csv";
-  const dettaglioUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfpqCW3HVDqk7-PDhCsYEXVCnPlc9nPRglNVNJTSWx0NyVZ3MLoAVtSZFeq71PqolEwQBmN3fHb6qt/pub?gid=364007020&single=true&output=csv";
-
-  let elencoData = [];
-  let dettaglioData = [];
-  let currentView = "elenco";
-  let currentFilter = "today";
-  let elencoTable;
-  let dettaglioTable;
-
-  // Colonne in ordine come il foglio dett. spese
-  const colonneDettaglio = [
-    "TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
-    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE",
-    "RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"
-  ];
-  const azzurroCols = [
-    "TRASPORTI","AFFITTO","UTENZE","SPESA E ALIMENTARI","CURA PERSONALE",
-    "SPESE MEDICHE","VESTITI ESSENZIALI","COSE DELLA CASA","SPESE SCOLASTICHE"
-  ];
-  const gialloCols = [
-    "RISTORANTE","VACANZA","REGALI","ALTRO EXTRA","USCITE","SIGARETTE"
-  ];
-
-  function parseDate(str){
-    if(!str) return null;
-    let p = str.split("/");
-    if(p.length!=3) return null;
-    return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p,10));
+function renderElenco(data){
+  if ( $.fn.dataTable.isDataTable('#elenco-table') ) {
+      $('#elenco-table').DataTable().destroy();
+      $('#elenco-table').empty();
   }
-
-  function filterByDateRange(data, start, end, excludeToday) {
-    return data.filter(row => {
-      let dt = parseDate(row["DATA"]);
-      if(!dt) return false;
-      if(excludeToday){
-        let today = new Date(); today.setHours(0,0,0,0);
-        if(dt.getTime() === today.getTime()) return false;
-      }
-      return dt >= start && dt <= end;
-    });
+  if(!data.length){
+    $('#elenco-header').html("");
+    $('#elenco-table tbody').html("<tr><td colspan='20' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
+    return;
   }
-
-  function findPrevMonthWithData(data) {
-    let now = new Date(); let year = now.getFullYear(); let month = now.getMonth()-1;
-    let counts = {};
-    data.forEach(d=>{
-      let dt=parseDate(d["DATA"]);
-      if(!dt) return;
-      counts[dt.getFullYear()] = counts[dt.getFullYear()] || {};
-      counts[dt.getFullYear()][dt.getMonth()] = (counts[dt.getFullYear()][dt.getMonth()] ||0 )+1;
-    });
-    for(let i=0;i<24;i++){
-      if(counts[year] && counts[year][month]) return {year, month};
-      month--; if(month<0){month=11;year--;}
-    }
-    return null;
-  }
-
-  function renderElenco(data){
-    if(elencoTable) elencoTable.destroy();
-    if(!data.length){
-      $('#elenco-header').html("");
-      $('#elenco-table tbody').html("<tr><td colspan='20' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
-      return;
-    }
-    const headers = Object.keys(data).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
-    $('#elenco-header').html(headers.map(h=>`<th>${h}</th>`).join(""));
-    let rows = '';
-    data.forEach(row=>{
-      let cls = row["TIPOLOGIA"] === "Uscita" ? 'uscita' : (row["TIPOLOGIA"] === "Entrata" ? 'entrata' : '');
-      rows += `<tr class="${cls}">`;
-      headers.forEach(h => rows += "<td>"+(row[h]||"")+"</td>");
-      rows += "</tr>";
-    });
-    $('#elenco-table tbody').html(rows);
-    elencoTable = $("#elenco-table").DataTable({
-      order:[[headers.indexOf("DATA"),"desc"]],
-      language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
-      paging:true,
-      pageLength: 15,
-      searching:true,
-      info:true,
-      lengthChange:false
-    });
-  }
-
-  function renderDettaglio(data){
-    if(dettaglioTable) dettaglioTable.destroy();
-    if(!data.length){
-      $('#dettaglio-header').html("");
-      $('#dettaglio-table tbody').html("<tr><td colspan='30' style='text-align:center; font-style: italic;'>Nessun dato disponibile</td></tr>");
-      return;
-    }
-    // Header FISSO e colorato come foglio Google
-    $('#dettaglio-header').html(colonneDettaglio.map(h => {
-      let cls = "";
-      if (azzurroCols.includes(h)) cls = "header-azzurro";
-      if (gialloCols.includes(h)) cls = "header-giallo";
-      return `<th class="${cls}">${h}</th>`;
-    }).join(""));
-    let rows = "";
-    data.forEach(row => {
-      rows += "<tr>";
-      colonneDettaglio.forEach(h => rows += `<td>${row[h] ? row[h] : ""}</td>`);
-      rows += "</tr>";
-    });
-    $('#dettaglio-table tbody').html(rows);
-    dettaglioTable = $('#dettaglio-table').DataTable({
-      order:[[0,"asc"]],
-      language:{url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
-      paging:true,
-      pageLength:15,
-      searching:true,
-      info:true,
-      lengthChange:false
-    });
-  }
-
-  function applyElencoFilter(filter){
-    let today = new Date(); today.setHours(0,0,0,0);
-    let filtered = [];
-    switch(filter){
-      case "today":
-        filtered = filterByDateRange(elencoData, today, today);
-        break;
-      case "week":
-        let weekAgo = new Date(today); weekAgo.setDate(today.getDate()-7);
-        filtered = filterByDateRange(elencoData,weekAgo,today,true);
-        break;
-      case "current-month":
-        let startMonth = new Date(today.getFullYear(),today.getMonth(),1);
-        let endMonth = new Date(today.getFullYear(),today.getMonth()+1,0);
-        filtered = filterByDateRange(elencoData,startMonth,endMonth);
-        break;
-      case "previous-month":
-        let recent = findPrevMonthWithData(elencoData);
-        if(recent){
-          let start = new Date(recent.year, recent.month, 1);
-          let end = new Date(recent.year, recent.month+1, 0);
-          filtered = filterByDateRange(elencoData,start,end);
-        } else filtered = [];
-        break;
-      case "all":
-      default:
-        filtered = elencoData.slice().sort((a,b)=>{
-          let da = parseDate(a["DATA"]); let db = parseDate(b["DATA"]);
-          if(!da) return 1; if(!db) return -1; return db-da;
-        });
-    }
-    renderElenco(filtered);
-  }
-
-  function showView(view){
-    if(view === currentView) return;
-    currentView = view;
-    if(view === "elenco"){
-      $("#elenco-view").show();
-      $("#dettaglio-view").hide();
-      $("#filter-container").show();
-      applyElencoFilter(currentFilter);
-    } else {
-      $("#elenco-view").hide();
-      $("#dettaglio-view").show();
-      $("#filter-container").hide();
-      renderDettaglio(dettaglioData);
-    }
-    $("#sidebar li").removeClass("active");
-    $(`#sidebar li[data-view="${view}"]`).addClass("active");
-  }
-
-  $(document).ready(function(){
-    Papa.parse(elencoUrl,{
-      download:true, header:true, skipEmptyLines:true,
-      complete:function(results){
-        elencoData = results.data;
-        applyElencoFilter(currentFilter);
-      }
-    });
-    Papa.parse(dettaglioUrl,{
-      download:true, header:true, skipEmptyLines:true,
-      complete:function(results){
-        dettaglioData = results.data;
-      }
-    });
-    $("#sidebar li").on("click", function(){
-      showView($(this).data("view"));
-    });
-    $("#filter-container").on("click", ".filter-btn", function(){
-      currentFilter = $(this).data("filter");
-      $("#filter-container .filter-btn").removeClass("active");
-      $(this).addClass("active");
-      applyElencoFilter(currentFilter);
-    });
+  const headers = Object.keys(data).filter(h=>!["MESE","ANNO","MESE_1"].includes(h));
+  $('#elenco-header').html(headers.map(h=>`<th>${h}</th>`).join(""));
+  let rows = '';
+  data.forEach(row=>{
+    let cls = row["TIPOLOGIA"] === "Uscita" ? 'uscita' : (row["TIPOLOGIA"] === "Entrata" ? 'entrata' : '');
+    rows += `<tr class="${cls}">`;
+    headers.forEach(h => rows += "<td>"+(row[h]||"")+"</td>");
+    rows += "</tr>";
   });
-</script>
-</body>
-</html>
+  $('#elenco-table tbody').html(rows);
+  elencoTable = $("#elenco-table").DataTable({
+    order:[[headers.indexOf("DATA"),"desc"]],
+    language: {url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/Italian.json"},
+    paging:true,
+    pageLength: 15,
+    searching:true,
+    info:true,
+    lengthChange:false
+  });
+}
